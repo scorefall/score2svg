@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1000 1000">
+    <defs>
+        <path id="four"
+d="M182 0h40zM182 500h40zM194 148h-162l-11 16c56 83 107 183 121 314c42 -11 88 -10 136 4l12 -15c-84 -120 -151 -218 -211 -275l-9 -9h124v81l82 107h23v-188h80v-35h-80v-82c0 -21 37 -24 45 -25l1 -11h-188l1 14c9 1 36 4 36 22v82z" />
+    </defs>
+    <use x="0" y="0" xlink:href="#four"/>
+    <use x="500" y="0" xlink:href="#four"/>
+    <use x="0" y="500" xlink:href="#four"/>
+    <use x="500" y="500" xlink:href="#four"/>
+</svg>
