@@ -2,7 +2,7 @@
 ///
 /// The IDs match SMuFL.  
 #[repr(u32)]
-pub enum Glyph {
+pub enum GlyphId {
     // Stem For Notes
     Stem = 0xE210,
     StemBuzzRoll = 0xE217,
@@ -214,18 +214,19 @@ pub enum Glyph {
     ClefCChange = 0xE07B,
     // Treble Clef
     ClefG = 0xE050,
-    ClefGCombiningAlta = 0xE059,
-    ClefGCombiningBassa = 0xE058,
+//    ClefGCombiningAlta = 0xE059,
+//    ClefGCombiningBassa = 0xE058,
     ClefGChange = 0xE07A,
     // Bass Clef
-    ClefFChange = 0xE07B,
+    ClefF = 0xE062,
+    ClefFChange = 0xE07C,
     // Octave Changes
     Clef8 = 0xE07D,
     Clef15 = 0xE07E,
-    // TODO: or maybe we should do?
-    Clef8 = 0xE510,
+    // TODO: Group measures transpose by some number of octaves
+/*    Clef8 = 0xE510,
     Clef15 = 0xE514,
-    Clef22 = 0xE517,
+    Clef22 = 0xE517,*/
     ClefLParens = 0xE51A,
     ClefRParens = 0xE51B,
 //    Clef8vaBassa = ,
@@ -236,16 +237,17 @@ pub enum Glyph {
 //    Clef22maAlta = ,
 
     // Time Signature
-/*    TimeSig0 = 0xE080,
+    TimeSig0 = 0xE080,
     TimeSig1 = 0xE081,
     TimeSig2 = 0xE082,
-    TimeSig3 = 0xE083,
-    TimeSig4 = 0xE084,
+    TimeSig3 = 0xE083, // 421
+    TimeSig4 = 0xE084, // 470
     TimeSig5 = 0xE085,
     TimeSig6 = 0xE086,
     TimeSig7 = 0xE087,
     TimeSig8 = 0xE088,
-    TimeSig9 = 0xE089,*/
+    TimeSig9 = 0xE089,
+    // TODO ???
     TimeSigNum0 = 0xF5B7, // 0x0030
     TimeSigNum1 = 0xF5B9, // 0x0031
     TimeSigNum2 = 0xF5BB, // 0x0032
@@ -330,6 +332,58 @@ pub enum Glyph {
     Tuplet8 = 0xE888,
     Tuplet9 = 0xE889,
     TupletColon = 0xE88A,
+}
+
+/// Default font (Bravura).
+pub const DEFAULT: &'static str = include_str!("vfont/bravura.vfont");
+
+// A half or whole step.
+const STEP: i32 = 128;
+
+use GlyphId::*;
+
+fn stamp(out: &mut String, u: GlyphId, x: i32, y: i32) {
+    out.push_str(&format!("<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>", x, y, u as u32));
+}
+
+// Add a stem downwards.
+fn stem_d(out: &mut String, x: i32, y: i32) {
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M15 0h-30v875l30 -50v-875z\"/>", x, y));
+}
+
+// Add a stem upwards.
+fn stem_u(out: &mut String, x: i32, y: i32) {
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M15 -50l-30 50v875h30v-875z\"/>", x as f64 + 0.9, y));
+}
+
+/// Generate some test score.
+pub fn test_svg(vfont: &str) -> String {
+    // Header
+    let mut out = "<svg viewBox=\"0 0 8192 2048\">".to_string();
+    out.push_str(vfont);
+
+    // Bodyer
+    for i in 0..16 {
+        stamp(&mut out, Staff5, i * 500 + 96, STEP * 12);
+    }
+    // Clef
+    stamp(&mut out, ClefC, 96, STEP * 8);
+    // Time Signature
+    stamp(&mut out, TimeSig3, 96 + 899, STEP * 6 + 16); // 421
+    stamp(&mut out, TimeSig4, 96 + 899 - ((470 - 421) / 2) + 16, STEP * 10); // 470
+    // Draw 
+    stamp(&mut out, NoteheadHalf, 96 + 1545, 19 + STEP * 7 - 7);
+    stem_d(&mut out, 96 + 1560, 41 + STEP * 14 - 7);
+
+    // Draw
+    stamp(&mut out, NoteheadHalf, 96 + 1545 + 500, 19 + STEP * 9 - 7);
+    stem_u(&mut out, 96 + (1560 + 264) + 500, 41 - 130 - 875 + STEP * 16 - 7);
+
+//    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
+
+    // Footer
+    out.push_str("</svg>");
+    out
 }
 
 #[cfg(test)]

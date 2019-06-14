@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 scof = { path = "../scof" }
+svg = "0.5"
