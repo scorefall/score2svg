@@ -338,7 +338,7 @@ pub enum GlyphId {
 pub const DEFAULT: &'static str = include_str!("vfont/bravura.vfont");
 
 // A half or whole step.
-const STEP: i32 = 128;
+const STEP: i32 = 125;
 
 use GlyphId::*;
 
@@ -353,7 +353,12 @@ fn stem_d(out: &mut String, x: i32, y: i32) {
 
 // Add a stem upwards.
 fn stem_u(out: &mut String, x: i32, y: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M15 -50l-30 50v875h30v-875z\"/>", x as f64 + 0.9, y));
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M16 -50l-30 50v875h30v-875z\"/>", x, y - 3));
+}
+
+
+fn staff(out: &mut String, x: i32, y: i32, w: i32) {
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M0 -16h{}v32h-{}v-32z\"/>", x, y, w, w));
 }
 
 /// Generate some test score.
@@ -362,22 +367,32 @@ pub fn test_svg(vfont: &str) -> String {
     let mut out = "<svg viewBox=\"0 0 8192 2048\">".to_string();
     out.push_str(vfont);
 
-    // Bodyer
-    for i in 0..16 {
-        stamp(&mut out, Staff5, i * 500 + 96, STEP * 12);
+//    // Bodyer
+//    for i in 0..16 {
+//        stamp(&mut out, Staff5, i * 500 + 96, STEP * 12);
+//    }
+    for i in 0..5 {
+        // 5 line staff
+        staff(&mut out, 96, STEP * (4 + i * 2), 8000);
     }
     // Clef
     stamp(&mut out, ClefC, 96, STEP * 8);
     // Time Signature
-    stamp(&mut out, TimeSig3, 96 + 899, STEP * 6 + 16); // 421
-    stamp(&mut out, TimeSig4, 96 + 899 - ((470 - 421) / 2) + 16, STEP * 10); // 470
+    stamp(&mut out, TimeSig3, 96 + 899, STEP * 6); // 421
+    stamp(&mut out, TimeSig4, 96 + 899 - ((470 - 421) / 2), STEP * 10); // 470
     // Draw 
-    stamp(&mut out, NoteheadHalf, 96 + 1545, 19 + STEP * 7 - 7);
-    stem_d(&mut out, 96 + 1560, 41 + STEP * 14 - 7);
-
+    stamp(&mut out, NoteheadHalf, 96 + 1545, STEP * 7);
+    stem_d(&mut out, 96 + 1560, 41 + STEP * 14);
     // Draw
-    stamp(&mut out, NoteheadHalf, 96 + 1545 + 500, 19 + STEP * 9 - 7);
-    stem_u(&mut out, 96 + (1560 + 264) + 500, 41 - 130 - 875 + STEP * 16 - 7);
+    stamp(&mut out, NoteheadHalf, 96 + 1545 + 500, STEP * 9);
+    stem_u(&mut out, 96 + (1560 + 264) + 500, 41 - 132 - 875 + STEP * 16);
+
+    // Draw 
+    stamp(&mut out, NoteheadFill, 96 + 1545 + 1000, STEP * 5);
+    stem_d(&mut out, 96 + 1560 + 1000, 41 + STEP * 12);
+    // Draw
+    stamp(&mut out, NoteheadFill, 96 + 1545 + 1500, STEP * 11);
+    stem_u(&mut out, 96 + (1560 + 264) + 1500, 41 - 132 - 875 + STEP * 18);
 
 //    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
 
