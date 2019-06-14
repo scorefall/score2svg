@@ -180,31 +180,6 @@ pub enum GlyphId {
     GraceNoteSlashStemUp = 0xE564,
     GraceNoteSlashStemDown = 0xE565,
 
-    // Staff Lines
-    Staff1 = 0xE010,
-    Staff2 = 0xE011,
-    Staff3 = 0xE012,
-    Staff4 = 0xE013,
-    Staff5 = 0xE014,
-    Staff6 = 0xE015,
-    // Note Modifiers on Staff.
-    Raise1 = 0xEB90,
-    Raise2 = 0xEB91,
-    Raise3 = 0xEB92,
-    Raise4 = 0xEB93,
-    Raise5 = 0xEB94,
-    Raise6 = 0xEB95,
-    Raise7 = 0xEB96,
-    Raise8 = 0xEB97,
-    Lower1 = 0xEB98,
-    Lower2 = 0xEB99,
-    Lower3 = 0xEB9A,
-    Lower4 = 0xEB9B,
-    Lower5 = 0xEB9C,
-    Lower6 = 0xEB9D,
-    Lower7 = 0xEB9E,
-    Lower8 = 0xEB9F,
-
     // -- Clefs --
     // Tabulature
     ClefTab4 = 0xE06E,
@@ -348,18 +323,22 @@ fn stamp(out: &mut String, u: GlyphId, x: i32, y: i32) {
 
 // Add a stem downwards.
 fn stem_d(out: &mut String, x: i32, y: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M15 0h-30v875l30 -50v-875z\"/>", x, y));
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M15 1895c-1 14-29 14-30 0v-855l30 50v855z\"/>", x, y));
 }
 
-// Add a stem upwards.
+// Add a stem upwards. 910
 fn stem_u(out: &mut String, x: i32, y: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 -1 {} {})\" d=\"M16 -50l-30 50v875h30v-875z\"/>", x, y - 3));
+    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M15 105c-1 -14-29 -14-30 0v805l30 50v-805z\"/>", x, y));
+
+//    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M16 50l-30 50v-875h30v875z\"/>", x, y));
 }
 
 
 fn staff(out: &mut String, x: i32, y: i32, w: i32) {
     out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M0 -16h{}v32h-{}v-32z\"/>", x, y, w, w));
 }
+
+//fn 
 
 /// Generate some test score.
 pub fn test_svg(vfont: &str) -> String {
@@ -380,19 +359,20 @@ pub fn test_svg(vfont: &str) -> String {
     // Time Signature
     stamp(&mut out, TimeSig3, 96 + 899, STEP * 6); // 421
     stamp(&mut out, TimeSig4, 96 + 899 - ((470 - 421) / 2), STEP * 10); // 470
-    // Draw 
-    stamp(&mut out, NoteheadHalf, 96 + 1545, STEP * 7);
-    stem_d(&mut out, 96 + 1560, 41 + STEP * 14);
-    // Draw
-    stamp(&mut out, NoteheadHalf, 96 + 1545 + 500, STEP * 9);
-    stem_u(&mut out, 96 + (1560 + 264) + 500, 41 - 132 - 875 + STEP * 16);
 
     // Draw 
-    stamp(&mut out, NoteheadFill, 96 + 1545 + 1000, STEP * 5);
-    stem_d(&mut out, 96 + 1560 + 1000, 41 + STEP * 12);
+    stamp(&mut out, NoteheadFill, 96 + 1545, 1000 - STEP * 3);
+    stem_d(&mut out, 96 + 1560, -STEP * 3);
     // Draw
-    stamp(&mut out, NoteheadFill, 96 + 1545 + 1500, STEP * 11);
-    stem_u(&mut out, 96 + (1560 + 264) + 1500, 41 - 132 - 875 + STEP * 18);
+    stamp(&mut out, NoteheadFill, 96 + 1545 + 500, 1000 + STEP * 3);
+    stem_u(&mut out, 96 + (1560 + 265) + 500, STEP * 3);
+
+    // Draw 
+    stamp(&mut out, NoteheadHalf, 96 + 1545 + 1000, 1000);
+    stem_d(&mut out, 96 + 1560 + 1000, 0);
+    // Draw
+    stamp(&mut out, NoteheadHalf, 96 + 1545 + 1500, 1000);
+    stem_u(&mut out, 96 + (1560 + 265) + 1500, 0);
 
 //    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
 
