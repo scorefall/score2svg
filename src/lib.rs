@@ -3,6 +3,9 @@
 /// The IDs match SMuFL.  
 #[repr(u32)]
 pub enum GlyphId {
+    // Barline
+    Barline = 0xE030,
+
     // Stem For Notes
     Stem = 0xE210,
     StemBuzzRoll = 0xE217,
@@ -212,27 +215,33 @@ pub enum GlyphId {
 //    Clef22maAlta = ,
 
     // Time Signature
-    TimeSig0 = 0xE080,
-    TimeSig1 = 0xE081,
-    TimeSig2 = 0xE082,
-    TimeSig3 = 0xE083, // 421
-    TimeSig4 = 0xE084, // 470
-    TimeSig5 = 0xE085,
-    TimeSig6 = 0xE086,
-    TimeSig7 = 0xE087,
-    TimeSig8 = 0xE088,
-    TimeSig9 = 0xE089,
+    TimeSig0 = 0xE080, // 0x0030
+    TimeSig1 = 0xE081, // 0x0031
+    TimeSig2 = 0xE082, // 0x0032
+    TimeSig3 = 0xE083, // 0x0033
+    TimeSig4 = 0xE084, // 0x0034
+    TimeSig5 = 0xE085, // 0x0035
+    TimeSig6 = 0xE086, // 0x0036
+    TimeSig7 = 0xE087, // 0x0037
+    TimeSig8 = 0xE088, // 0x0038
+    TimeSig9 = 0xE089, // 0x0039
+    // 4/4
+    TimeSigCommon = 0xE08A,
+    // 2/2
+    TimeSigCut = 0xE08B,
+    TimeSigPlus = 0xE08C,
+    TimeSigNumPlus = 0xE08D, // 0x002B
     // TODO ???
-    TimeSigNum0 = 0xF5B7, // 0x0030
-    TimeSigNum1 = 0xF5B9, // 0x0031
-    TimeSigNum2 = 0xF5BB, // 0x0032
-    TimeSigNum3 = 0xF5BD, // 0x0033
-    TimeSigNum4 = 0xF5BF, // 0x0034
-    TimeSigNum5 = 0xF5C1, // 0x0035
-    TimeSigNum6 = 0xF5C3, // 0x0036
-    TimeSigNum7 = 0xF5C5, // 0x0037
-    TimeSigNum8 = 0xF5C7, // 0x0038
-    TimeSigNum9 = 0xF5C9, // 0x0039
+/*    TimeSigNum0 = 0xF5B7, 
+    TimeSigNum1 = 0xF5B9, 
+    TimeSigNum2 = 0xF5BB, 
+    TimeSigNum3 = 0xF5BD, 
+    TimeSigNum4 = 0xF5BF, 
+    TimeSigNum5 = 0xF5C1,
+    TimeSigNum6 = 0xF5C3,
+    TimeSigNum7 = 0xF5C5,
+    TimeSigNum8 = 0xF5C7,
+    TimeSigNum9 = 0xF5C9,
     TimeSigDen0 = 0xF5B6,
     TimeSigDen1 = 0xF5B8,
     TimeSigDen2 = 0xF5BA,
@@ -242,13 +251,7 @@ pub enum GlyphId {
     TimeSigDen6 = 0xF5C2,
     TimeSigDen7 = 0xF5C4,
     TimeSigDen8 = 0xF5C6,
-    TimeSigDen9 = 0xF5C8,
-    // 4/4
-    TimeSigCommon = 0xE08A,
-    // 2/2
-    TimeSigCut = 0xE08B,
-    TimeSigPlus = 0xE08C,
-    TimeSigNumPlus = 0xE08D, // 0x002B
+    TimeSigDen9 = 0xF5C8,*/
 
     // Tremelo
     Tremelo1 = 0xE220,
@@ -318,24 +321,22 @@ const STEP: i32 = 125;
 use GlyphId::*;
 
 fn stamp(out: &mut String, u: GlyphId, x: i32, y: i32) {
-    out.push_str(&format!("<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>", x, y, u as u32));
+    out.push_str(&format!("<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>\n", x, y, u as u32));
 }
 
 // Add a stem downwards.
 fn stem_d(out: &mut String, x: i32, y: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M15 1895c-1 14-29 14-30 0v-855l30 50v855z\"/>", x, y));
+    out.push_str(&format!("<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n", x + 15, y + 1895));
 }
 
 // Add a stem upwards. 910
 fn stem_u(out: &mut String, x: i32, y: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M15 105c-1 -14-29 -14-30 0v805l30 50v-805z\"/>", x, y));
-
-//    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M16 50l-30 50v-875h30v875z\"/>", x, y));
+    out.push_str(&format!("<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n", x + 15, y + 105));
 }
 
 
 fn staff(out: &mut String, x: i32, y: i32, w: i32) {
-    out.push_str(&format!("<path transform=\"matrix(1 0 0 1 {} {})\" d=\"M0 -16h{}v32h-{}v-32z\"/>", x, y, w, w));
+    out.push_str(&format!("<path d=\"M{} {}h{}v32h-{}v-32z\"/>\n", x, y - 16, w, w));
 }
 
 //fn 
@@ -343,7 +344,7 @@ fn staff(out: &mut String, x: i32, y: i32, w: i32) {
 /// Generate some test score.
 pub fn test_svg(vfont: &str) -> String {
     // Header
-    let mut out = "<svg viewBox=\"0 0 8192 2048\">".to_string();
+    let mut out = "<svg viewBox=\"0 0 8192 2048\">\n".to_string();
     out.push_str(vfont);
 
 //    // Bodyer
@@ -355,10 +356,10 @@ pub fn test_svg(vfont: &str) -> String {
         staff(&mut out, 96, STEP * (4 + i * 2), 8000);
     }
     // Clef
-    stamp(&mut out, ClefC, 96, STEP * 8);
+    stamp(&mut out, ClefC, 96, 1000);
     // Time Signature
-    stamp(&mut out, TimeSig3, 96 + 899, STEP * 6); // 421
-    stamp(&mut out, TimeSig4, 96 + 899 - ((470 - 421) / 2), STEP * 10); // 470
+    stamp(&mut out, TimeSig3, 96 + 900, 1000 - STEP * 2); // 421
+    stamp(&mut out, TimeSig4, 96 + 900 - ((470 - 421) / 2), 1000 + STEP * 2); // 470
 
     // Draw 
     stamp(&mut out, NoteheadFill, 96 + 1545, 1000 - STEP * 3);
@@ -370,9 +371,13 @@ pub fn test_svg(vfont: &str) -> String {
     // Draw 
     stamp(&mut out, NoteheadHalf, 96 + 1545 + 1000, 1000);
     stem_d(&mut out, 96 + 1560 + 1000, 0);
+
+    // Barline
+    stamp(&mut out, Barline, 96 + 1545 + 2000, 1500);
+
     // Draw
-    stamp(&mut out, NoteheadHalf, 96 + 1545 + 1500, 1000);
-    stem_u(&mut out, 96 + (1560 + 265) + 1500, 0);
+    stamp(&mut out, NoteheadHalf, 96 + 1545 + 2200, 1000);
+    stem_u(&mut out, 96 + (1560 + 265) + 2200, 0);
 
 //    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
 

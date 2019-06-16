@@ -12,5 +12,8 @@ Measures are aligned by the smallest duration.  The measures get a fraction of t
 
 ## Rules
 - 32 notes per line maximum.
-- 10 measures per line maximum (only way is with 100 points).
+- 9 measures per line maximum.
 - Accidentals give measure more space, but less if first glyph in the measure.  Also less if accidentals aren't in the way of anything.
+- 2 measures difference in sequential lines maximum.
+- Greatest width measure in a line can be 2x the least width measure on a line maximum.
+- Barlines over 2 sequential lines with the same number of measures shall be limited to 1/5 line length difference in the X coordinate.
