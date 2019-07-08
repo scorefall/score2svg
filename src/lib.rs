@@ -1,3 +1,5 @@
+pub use svg;
+
 /// Different parts of the music that can be drawn.
 ///
 /// The IDs match SMuFL.  
