@@ -1,5 +1,7 @@
 pub use svg;
 
+use scof::Marking;
+
 /// Different parts of the music that can be drawn.
 ///
 /// The IDs match SMuFL.  
@@ -341,49 +343,128 @@ fn staff(out: &mut String, x: i32, y: i32, w: i32) {
     out.push_str(&format!("<path d=\"M{} {}h{}v32h-{}v-32z\"/>\n", x, y - 16, w, w));
 }
 
-//fn 
+fn cursor(out: &mut String, x: i32, y: i32, w: i32) {
+    out.push_str(&format!("<path d=\"M{} {}h{}v1000h-{}v-1000z\" fill=\"#AAF\"/>\n", x, y, w, w));
+}
+
+/// - `margin`: Offset from X origin.
+/// - `screen_width`: Width of screen.
+/// - `cursor_dims`: If cursor should be drawn, % position and % width.
+/// - `scof`: The score.
+/// - `bar`: measure number.
+/// - `chan`: Which channel the bar is on.
+fn render_measure(out: &mut String, mut margin: i32, screen_width: i32, cursor_dims: Option<(f32, f32)>, scof: &scof::Scof, bar: usize, chan: usize) {
+//    stamp(out, NoteheadFill, margin + 2000, 1000 - STEP * 3);
+//    stem_d(out, margin + 2000 + 15, -STEP * 3);
+
+    if let Some((position, width)) = cursor_dims {
+        cursor(out, margin + 32 + (4000f32 * position) as i32, 1000 -STEP * 4, (4000f32 * width) as i32);
+    }
+
+    let mut empty = true;
+    let mut curs = 0;
+    while let Some(marking) = scof.get(bar, chan, curs) {
+        if empty {
+            empty = false;
+        }
+        match marking {
+            Marking::Note(note) => {
+                if let Some(pitch) = note.pitch {
+                    
+                } else {
+                    // Rest
+                    match note.duration.1 {
+                        1 => stamp(out, Rest1, margin + 250, 1000),
+                        2 => stamp(out, Rest2, margin + 250, 1000),
+                        4 => stamp(out, Rest4, margin + 250, 1000),
+                        8 => stamp(out, Rest8, margin + 250, 1000),
+                        16 => stamp(out, Rest16, margin + 250, 1000),
+                        32 => stamp(out, Rest32, margin + 250, 1000),
+                        64 => stamp(out, Rest64, margin + 250, 1000),
+                        128 => stamp(out, Rest128, margin + 250, 1000),
+                        _ => { /*unknown, do nothing*/ }
+                    }
+                    margin += (4000f32 * note.duration.0 as f32 / note.duration.1 as f32) as i32;
+                }
+            }
+            _ => {/*unknown, do nothing*/}
+        }
+        curs += 1;
+    }
+
+    if empty {
+        stamp(out, Rest1, margin + 250, 1000 -STEP * 2);
+    }
+}
+
+fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize) {
+    let margin = 96;
+    let screen_width = screen_width - margin * 2;
+
+/*    // Clef
+    stamp(out, ClefC, 96, 1000);
+    // Time Signature
+    stamp(out, TimeSig3, 96 + 1000, 1000 - STEP * 2); // 421
+    stamp(out, TimeSig4, 96 + 1000 - ((470 - 421) / 2), 1000 + STEP * 2); // 470*/
+
+    // Print enough measures to fill the screen.
+    let mut i = 0usize;
+    'm: loop {
+        let position = 4000 * i as i32;
+
+        if position > screen_width {
+            break 'm;
+        }
+
+        // Render this measure
+        let curs = if i == 0 {
+            Some((0.0, 0.25))
+        } else {
+            None
+        };
+        render_measure(out, margin + position, screen_width, curs, scof, i, chan);
+        // Barline
+        stamp(out, Barline, margin + position + 4000, 1500);
+
+        i += 1;
+    }
+
+    // 5 line staff
+    for i in 0..5 {
+        staff(out, margin, STEP * (4 + i * 2), screen_width);
+    }
+
+/*    // Draw 
+    stamp(out, NoteheadFill, 96 + 2000, 1000 - STEP * 3);
+    stem_d(out, 96 + 2000 + 15, -STEP * 3);
+    // Draw
+    stamp(out, NoteheadFill, 96 + 2000 + 1000, 1000 + STEP * 3);
+    stem_u(out, 96 + (2000 + 265) + 1000 + 15, STEP * 3);
+
+    // Draw 
+    stamp(out, NoteheadHalf, 96 + 2000 + 2000, 1000);
+    stem_d(out, 96 + 2000 + 2000 + 15, 0);
+
+    // Barline
+    stamp(out, Barline, 96 + 2000 + 4000, 1500);
+
+    // Draw
+    stamp(out, NoteheadHalf, 96 + 2000 + 4400, 1000);
+    stem_u(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
+}
 
 /// Generate some test score.
-pub fn test_svg(vfont: &str) -> String {
-    // Header
+pub fn test_svg(vfont: &str, screen_width: i32, scof: &scof::Scof) -> String {
+    // Header: DEFS section.
     let mut out = "<svg viewBox=\"0 0 8192 2048\">\n".to_string();
     out.push_str(vfont);
 
-//    // Bodyer
-//    for i in 0..16 {
-//        stamp(&mut out, Staff5, i * 500 + 96, STEP * 12);
-//    }
-    for i in 0..5 {
-        // 5 line staff
-        staff(&mut out, 96, STEP * (4 + i * 2), 8000);
-    }
-    // Clef
-    stamp(&mut out, ClefC, 96, 1000);
-    // Time Signature
-    stamp(&mut out, TimeSig3, 96 + 900, 1000 - STEP * 2); // 421
-    stamp(&mut out, TimeSig4, 96 + 900 - ((470 - 421) / 2), 1000 + STEP * 2); // 470
-
-    // Draw 
-    stamp(&mut out, NoteheadFill, 96 + 1545, 1000 - STEP * 3);
-    stem_d(&mut out, 96 + 1560, -STEP * 3);
-    // Draw
-    stamp(&mut out, NoteheadFill, 96 + 1545 + 500, 1000 + STEP * 3);
-    stem_u(&mut out, 96 + (1560 + 265) + 500, STEP * 3);
-
-    // Draw 
-    stamp(&mut out, NoteheadHalf, 96 + 1545 + 1000, 1000);
-    stem_d(&mut out, 96 + 1560 + 1000, 0);
-
-    // Barline
-    stamp(&mut out, Barline, 96 + 1545 + 2000, 1500);
-
-    // Draw
-    stamp(&mut out, NoteheadHalf, 96 + 1545 + 2200, 1000);
-    stem_u(&mut out, 96 + (1560 + 265) + 2200, 0);
+    // Bodyer: Each Bar
+    render(&mut out, screen_width, scof, 0); // Channel 0
 
 //    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
 
-    // Footer
+    // Footer: Close File
     out.push_str("</svg>");
     out
 }
