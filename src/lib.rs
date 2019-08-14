@@ -2,6 +2,9 @@ pub use svg;
 
 use scof::Marking;
 
+const BAR_WIDTH: i32 = 3200;
+const BAR_W: f32 = BAR_WIDTH as f32;
+
 /// Different parts of the music that can be drawn.
 ///
 /// The IDs match SMuFL.  
@@ -353,16 +356,13 @@ fn cursor(out: &mut String, x: i32, y: i32, w: i32) {
 /// - `scof`: The score.
 /// - `bar`: measure number.
 /// - `chan`: Which channel the bar is on.
-fn render_measure(out: &mut String, mut margin: i32, screen_width: i32, cursor_dims: Option<(f32, f32)>, scof: &scof::Scof, bar: usize, chan: usize) {
+fn render_measure(out: &mut String, mut margin: i32, screen_width: i32, cursor_dims: Option<(f32, f32)>, scof: &scof::Scof, bar: usize, chan: usize, user_cursor: usize) {
 //    stamp(out, NoteheadFill, margin + 2000, 1000 - STEP * 3);
 //    stem_d(out, margin + 2000 + 15, -STEP * 3);
 
-    if let Some((position, width)) = cursor_dims {
-        cursor(out, margin + 32 + (4000f32 * position) as i32, 1000 -STEP * 4, (4000f32 * width) as i32);
-    }
-
     let mut empty = true;
     let mut curs = 0;
+
     while let Some(marking) = scof.get(bar, chan, curs) {
         if empty {
             empty = false;
@@ -374,17 +374,65 @@ fn render_measure(out: &mut String, mut margin: i32, screen_width: i32, cursor_d
                 } else {
                     // Rest
                     match note.duration.1 {
-                        1 => stamp(out, Rest1, margin + 250, 1000),
-                        2 => stamp(out, Rest2, margin + 250, 1000),
-                        4 => stamp(out, Rest4, margin + 250, 1000),
-                        8 => stamp(out, Rest8, margin + 250, 1000),
-                        16 => stamp(out, Rest16, margin + 250, 1000),
-                        32 => stamp(out, Rest32, margin + 250, 1000),
-                        64 => stamp(out, Rest64, margin + 250, 1000),
-                        128 => stamp(out, Rest128, margin + 250, 1000),
+                        1 => {
+                            let width = 1.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest1, margin + 250, 1000)
+                        },
+                        2 => {
+                            let width = 1.0 / 2.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest2, margin + 250, 1000)
+                        },
+                        4 => {
+                            let width = 1.0 / 4.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest4, margin + 250, 1000)
+                        },
+                        8 => {
+                            let width = 1.0 / 8.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest8, margin + 250, 1000)
+                        },
+                        16 => {
+                            let width = 1.0 / 16.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest16, margin + 250, 1000)
+                        },
+                        32 => {
+                            let width = 1.0 / 32.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest32, margin + 250, 1000)
+                        },
+                        64 => {
+                            let width = 1.0 / 64.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest64, margin + 250, 1000)
+                        },
+                        128 => {
+                            let width = 1.0 / 128.0;
+                            if curs == user_cursor {
+                                cursor(out, margin + 32, 1000 -STEP * 4, (BAR_W * width) as i32);
+                            }
+                            stamp(out, Rest128, margin + 250, 1000)
+                        },
                         _ => { /*unknown, do nothing*/ }
                     }
-                    margin += (4000f32 * note.duration.0 as f32 / note.duration.1 as f32) as i32;
+                    margin += (BAR_W * note.duration.0 as f32 / note.duration.1 as f32) as i32;
                 }
             }
             _ => {/*unknown, do nothing*/}
@@ -397,9 +445,9 @@ fn render_measure(out: &mut String, mut margin: i32, screen_width: i32, cursor_d
     }
 }
 
-fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize) {
+fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize, user_cursor: usize) {
     let margin = 96;
-    let screen_width = screen_width - margin * 2;
+    let screen_width = screen_width - margin;
 
 /*    // Clef
     stamp(out, ClefC, 96, 1000);
@@ -410,7 +458,7 @@ fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize) {
     // Print enough measures to fill the screen.
     let mut i = 0usize;
     'm: loop {
-        let position = 4000 * i as i32;
+        let position = BAR_WIDTH * i as i32;
 
         if position > screen_width {
             break 'm;
@@ -422,9 +470,9 @@ fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize) {
         } else {
             None
         };
-        render_measure(out, margin + position, screen_width, curs, scof, i, chan);
+        render_measure(out, margin + position, screen_width, curs, scof, i, chan, user_cursor);
         // Barline
-        stamp(out, Barline, margin + position + 4000, 1500);
+        stamp(out, Barline, margin + position + BAR_WIDTH, 1500);
 
         i += 1;
     }
@@ -454,13 +502,13 @@ fn render(out: &mut String, screen_width: i32, scof: &scof::Scof, chan: usize) {
 }
 
 /// Generate some test score.
-pub fn test_svg(vfont: &str, screen_width: i32, scof: &scof::Scof) -> String {
+pub fn test_svg(vfont: &str, screen_width: i32, scof: &scof::Scof, curs: usize) -> String {
     // Header: DEFS section.
     let mut out = "<svg viewBox=\"0 0 8192 2048\">\n".to_string();
     out.push_str(vfont);
 
     // Bodyer: Each Bar
-    render(&mut out, screen_width, scof, 0); // Channel 0
+    render(&mut out, screen_width, scof, 0, curs); // Channel 0
 
 //    stamp(&mut out, ClefCChange, 96 + 699, 512 + (STEP * 4));
 
