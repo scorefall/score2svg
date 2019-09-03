@@ -29,28 +29,6 @@ const NOTE_MARGIN: i32 = 250;
 
 const CURSOR_COLOR: &str = "F0F";
 
-// Add a stem downwards.
-#[allow(unused)] // FIXME
-fn stem_d(out: &mut String, x: i32, y: i32) {
-    // FIXME: Calculated from constants.
-    out.push_str(&format!(
-        "<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n",
-        x + 15,
-        y + 1895
-    ));
-}
-
-// Add a stem upwards.
-#[allow(unused)] // FIXME
-fn stem_u(out: &mut String, x: i32, y: i32) {
-    // FIXME: Calculated from constants. 910 (805+105)
-    out.push_str(&format!(
-        "<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n",
-        x + 15,
-        y + 105
-    ));
-}
-
 pub struct Renderer<'a> {
     out: String,
     scof: &'a Scof,
@@ -188,22 +166,39 @@ impl<'a> Renderer<'a> {
 
     /// Add `use` element for a note to the DOM.
     fn render_pitch(&mut self, note: &Note, dur: u8, duration: (f32, f32)) {
+        let offset = STEP_DY * note.visual_distance();
         // Draw
         self.stamp(
             GlyphId::notehead_duration(dur),
             self.offset_x + NOTE_MARGIN,
-            STAFF_DY - STEP_DY * 3,
+            STAFF_DY + offset,
         );
-        stem_d(
-            &mut self.out,
-            self.offset_x + NOTE_MARGIN + 15,
-            -STEP_DY * 3,
-        );
+        self.stem_down(self.offset_x + NOTE_MARGIN + 15, offset);
         /*        // Draw
         stamp(out, NoteheadFill, 96 + 2000 + STAFF_DY, STAFF_DY + STEP_DY * 3);
-        stem_u(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);*/
+        stem_up(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);*/
 
         // FIXME
+    }
+
+    // Add a stem downwards.
+    fn stem_down(&mut self, x: i32, y: i32) {
+        // FIXME: Calculated from constants.
+        self.out.push_str(&format!(
+            "<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n",
+            x + 15,
+            y + 1895
+        ));
+    }
+
+    // Add a stem upwards.
+    fn stem_up(&mut self, x: i32, y: i32) {
+        // FIXME: Calculated from constants. 910 (805+105)
+        self.out.push_str(&format!(
+            "<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n",
+            x + 15,
+            y + 105
+        ));
     }
 
     /// Add `use` element for a rest to the DOM.
@@ -249,7 +244,7 @@ impl<'a> Renderer<'a> {
 mod tests {
 
     //    stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
-    //    stem_d(out, offset_x + 2000 + 15, -STEP_DY * 3);
+    //    stem_down(out, offset_x + 2000 + 15, -STEP_DY * 3);
     /*    // Clef
     stamp(out, ClefC, 96, STAFF_DY);
     // Time Signature
@@ -258,12 +253,12 @@ mod tests {
 
     /*    // Draw
     stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
-    stem_d(out, 96 + 2000 + 2000 + 15, 0);
+    stem_down(out, 96 + 2000 + 2000 + 15, 0);
 
     // Barline
     stamp(out, Barline, 96 + 2000 + 4000, 1500);
 
     // Draw
     stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
-    stem_u(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
+    stem_up(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
 }
