@@ -27,6 +27,8 @@ const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
 // Space before each note.
 const NOTE_MARGIN: i32 = 250;
 
+const CURSOR_COLOR: &str = "F0F";
+
 // Add a stem downwards.
 #[allow(unused)] // FIXME
 fn stem_d(out: &mut String, x: i32, y: i32) {
@@ -46,6 +48,7 @@ pub struct Renderer<'a> {
     scof: &'a Scof,
     chan: usize,
     curs: usize,
+    measure: usize,
     vfont: &'a str,
     screen_width: i32,
     /// - `offset_x`: Offset from X origin.
@@ -55,13 +58,19 @@ pub struct Renderer<'a> {
 impl<'a> Renderer<'a> {
     /// - `scof`: The score.
     /// - `chan`: Which channel the bar is on.
-    pub fn new(scof: &'a Scof, chan: usize, curs: usize, vfont: &'a str,
+    /// - `curs`: User cursor (within measure).
+    /// - `measure`: User cursor (which measure).
+    /// - `vfont`: The font we're using (currently must be bravura).
+    /// - `screen_width`: How many units within the viewport width.
+    pub fn new(scof: &'a Scof, chan: usize, curs: usize, measure: usize, vfont: &'a str,
         screen_width: i32) -> Self
     {
         let out = String::new();
         let offset_x = 0;
-        Renderer { out, scof, chan, curs, vfont, screen_width, offset_x }
+        Renderer { out, scof, chan, curs, measure, vfont, screen_width, offset_x }
     }
+
+    /// Generate an SVG string.
     pub fn render(mut self) -> String {
         self.out.push_str("<svg>\n");
         self.out.push_str(self.vfont);
@@ -69,6 +78,8 @@ impl<'a> Renderer<'a> {
         self.out.push_str("</svg>");
         self.out
     }
+
+    /// Generate body of SVG string.
     fn render_body(&mut self) {
         let screen_width = self.screen_width - STAFF_MARGIN_X;
 
@@ -89,17 +100,17 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    /// - `bar`: measure number.
+    /// - `measure`: measure number.
     fn render_measure(&mut self, measure: usize) {
         let mut empty = true;
         let mut curs = 0;
 
-        while let Some(marking) = self.scof.get(measure, self.chan, curs) {
+        while let Some(marking) = self.scof.marking(measure, self.chan, curs) {
             if empty {
                 empty = false;
             }
             match marking {
-                Marking::Note(note) => self.render_note(&note, curs),
+                Marking::Note(note) => self.render_note(&note, curs, measure),
                 _ => unreachable!(),
             }
             curs += 1;
@@ -111,33 +122,50 @@ impl<'a> Renderer<'a> {
     }
 
     /// Add `use` element for either a note or a rest to the DOM.
-    fn render_note(&mut self, note: &Note, curs: usize) {
+    fn render_note(&mut self, note: &Note, curs: usize, measure: usize) {
+        let duration = (f32::from(note.duration.0), f32::from(note.duration.1));
+
+        // Add cursor, if it's here
+        self.render_cursor(note, curs, measure, duration);
+
+        // Render either note or rest
         if let Some(_pitch) = &note.pitch {
-            self.render_pitch(&note, curs);
+            self.render_pitch(&note, note.duration.1, duration);
         } else {
-            self.render_rest(&note, curs);
+            self.render_rest(&note, note.duration.1, duration);
+        }
+        self.offset_x += (BAR_W * duration.0 * duration.1.recip()) as i32;
+    }
+
+    /// Add `use` element for a note to the DOM.
+    fn render_cursor(&mut self, note: &Note, curs: usize, measure: usize, duration: (f32, f32)) {
+        let duration_denom = note.duration.1;
+        let width = duration.0 * duration.1.recip(); // Fraction to float.
+        if curs == self.curs && measure == self.measure {
+            self.cursor(self.offset_x + BARLINE_WIDTH, STEP_DY * 4, (BAR_W * width) as i32);
         }
     }
 
     /// Add `use` element for a note to the DOM.
-    fn render_pitch(&mut self, note: &Note, curs: usize) {
+    fn render_pitch(&mut self, note: &Note, dur: u8, duration: (f32, f32)) {
+        // Draw 
+        self.stamp(GlyphId::notehead_duration(dur), self.offset_x + NOTE_MARGIN, STAFF_DY - STEP_DY * 3);
+        stem_d(&mut self.out, self.offset_x + NOTE_MARGIN + 15, -STEP_DY * 3);
+/*        // Draw
+        stamp(out, NoteheadFill, 96 + 2000 + STAFF_DY, STAFF_DY + STEP_DY * 3);
+        stem_u(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);*/
+
         // FIXME
     }
 
     /// Add `use` element for a rest to the DOM.
-    fn render_rest(&mut self, note: &Note, curs: usize) {
-        let duration = note.duration.1;
-        let width = 1.0 / f32::from(duration);
-        if curs == self.curs {
-            self.cursor(self.offset_x + BARLINE_WIDTH, STEP_DY * 4, (BAR_W * width) as i32);
-        }
-        self.stamp(GlyphId::rest_duration(duration), self.offset_x + NOTE_MARGIN, STAFF_DY);
-        self.offset_x += (BAR_W * f32::from(note.duration.0) / f32::from(duration)) as i32;
+    fn render_rest(&mut self, note: &Note, dur: u8, duration: (f32, f32)) {
+        self.stamp(GlyphId::rest_duration(dur), self.offset_x + NOTE_MARGIN, STAFF_DY);
     }
 
     /// Render cursor at a specific position & with a specific width
     fn cursor(&mut self, x: i32, y: i32, w: i32) {
-        self.out.push_str(&format!("<path d=\"M{} {}h{}v{}h-{}v-{}z\" fill=\"#AAF\"/>\n", x, y, w, STAFF_DY, w, STAFF_DY));
+        self.out.push_str(&format!("<path d=\"M{} {}h{}v{}h-{}v-{}z\" fill=\"#{}\"/>\n", x, y, w, STAFF_DY, w, STAFF_DY, CURSOR_COLOR));
     }
 
     /// Render a glyph at a specific position
@@ -163,13 +191,6 @@ mod tests {
     stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470*/
 
 /*    // Draw 
-    stamp(out, NoteheadFill, 96 + 2000, STAFF_DY - STEP_DY * 3);
-    stem_d(out, 96 + 2000 + 15, -STEP_DY * 3);
-    // Draw
-    stamp(out, NoteheadFill, 96 + 2000 + STAFF_DY, STAFF_DY + STEP_DY * 3);
-    stem_u(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);
-
-    // Draw 
     stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
     stem_d(out, 96 + 2000 + 2000 + 15, 0);
 
