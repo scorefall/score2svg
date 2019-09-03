@@ -1,3 +1,5 @@
+#![allow(unused)] // FIXME: For now, until all of the glyphs are implemented.
+
 /// Different parts of the music that can be drawn.
 ///
 /// The IDs match SMuFL.  
@@ -310,4 +312,80 @@ pub enum GlyphId {
     Tuplet8 = 0xE888,
     Tuplet9 = 0xE889,
     TupletColon = 0xE88A,
+}
+
+impl GlyphId {
+    /// Get the glyph for a rest with a specific duration
+    pub(super) fn rest_duration(duration: u8) -> Self {
+        use GlyphId::*;
+
+        match duration {
+            // 0 => Rest1, // FIXME: Double Whole Rest?
+            1 => Rest1,
+            2 => Rest2,
+            4 => Rest4,
+            8 => Rest8,
+            16 => Rest16,
+            32 => Rest32,
+            64 => Rest64,
+            128 => Rest128,
+            _ => unreachable!(),
+        }
+    }
+
+    /// Get the flag glyph for a note with a specific duration
+    pub(super) fn flag_duration(duration: u8, up: bool) -> Option<Self> {
+        use GlyphId::*;
+
+        Some(match duration {
+            1 | 2 | 4 => return None,
+            8 => if up { FlagUp8 } else { FlagDown8 },
+            16 => if up { FlagUp16 } else { FlagDown16 },
+            32 => if up { FlagUp32 } else { FlagDown32 },
+            64 => if up { FlagUp64 } else { FlagDown64 },
+            128 => if up { FlagUp128 } else { FlagDown128 },
+            _ => unreachable!(),
+        })
+    }
+
+    /// Get the notehead glyph for a note with a specific duration
+    pub(super) fn notehead_duration(duration: u8) -> Self {
+        use GlyphId::*;
+        Self::notehead_variants(NoteheadWhole, NoteheadHalf, NoteheadFill, duration)
+    }
+
+    /// Get the notehead glyph for a note with a specific duration
+    pub(super) fn x_notehead_duration(duration: u8) -> Self {
+        use GlyphId::*;
+        Self::notehead_variants(NoteheadWholeX, NoteheadHalfX, NoteheadFillX, duration)
+    }
+
+    /// Get the square notehead glyph for a note with a specific duration
+    pub(super) fn square_notehead_duration(duration: u8) -> Self {
+        use GlyphId::*;
+        Self::notehead_variants(NoteheadOutlineSquare, NoteheadOutlineSquare, NoteheadSquare, duration)
+    }
+
+    /// Get the large square notehead glyph for a note with a specific duration
+    pub(super) fn large_square_notehead_duration(duration: u8) -> Self {
+        use GlyphId::*;
+        Self::notehead_variants(NoteheadOutlineLargeSquare, NoteheadOutlineLargeSquare, NoteheadLargeSquare, duration)
+    }
+
+    /// Given a duration and set of notehead glyphs, choose appropriate glyph
+    fn notehead_variants(whole: GlyphId, half: GlyphId, fill: GlyphId, duration: u8)
+        -> Self
+    {
+        if duration > 4 {
+            fill
+        } else {
+            match duration {
+                // 0 => NoteheadDoubleWhole,
+                1 => whole,
+                2 => half,
+                4 => fill,
+                _ => unreachable!(),
+            }
+        }
+    }
 }

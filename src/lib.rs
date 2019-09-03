@@ -6,7 +6,7 @@ mod glyph;
 use glyph::GlyphId::{self, *};
 
 /// Default font (Bravura).
-pub const DEFAULT: &'static str = include_str!("vfont/bravura.vfont");
+pub const DEFAULT: &str = include_str!("vfont/bravura.vfont");
 
 const BAR_WIDTH: i32 = 3200;
 const BAR_W: f32 = BAR_WIDTH as f32;
@@ -28,12 +28,14 @@ const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
 const NOTE_MARGIN: i32 = 250;
 
 // Add a stem downwards.
+#[allow(unused)] // FIXME
 fn stem_d(out: &mut String, x: i32, y: i32) {
     // FIXME: Calculated from constants.
     out.push_str(&format!("<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n", x + 15, y + 1895));
 }
 
 // Add a stem upwards.
+#[allow(unused)] // FIXME
 fn stem_u(out: &mut String, x: i32, y: i32) {
     // FIXME: Calculated from constants. 910 (805+105)
     out.push_str(&format!("<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n", x + 15, y + 105));
@@ -70,14 +72,14 @@ impl<'a> Renderer<'a> {
     fn render_body(&mut self) {
         let screen_width = self.screen_width - STAFF_MARGIN_X;
 
-        for bar in 0..9 {
-            let position = BAR_WIDTH * bar as i32;
+        for measure in 0..9 {
+            let position = BAR_WIDTH * measure as i32;
             if position > screen_width {
                 break;
             }
 
             self.offset_x = STAFF_MARGIN_X + position;
-            self.render_measure(bar);
+            self.render_measure(measure);
             self.stamp(Barline, STAFF_MARGIN_X + position + BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
         }
 
@@ -88,17 +90,17 @@ impl<'a> Renderer<'a> {
     }
 
     /// - `bar`: measure number.
-    fn render_measure(&mut self, bar: usize) {
+    fn render_measure(&mut self, measure: usize) {
         let mut empty = true;
         let mut curs = 0;
 
-        while let Some(marking) = self.scof.get(bar, self.chan, curs) {
+        while let Some(marking) = self.scof.get(measure, self.chan, curs) {
             if empty {
                 empty = false;
             }
             match marking {
                 Marking::Note(note) => self.render_note(&note, curs),
-                _ => {/*unknown, do nothing*/}
+                _ => unreachable!(),
             }
             curs += 1;
         }
@@ -107,21 +109,30 @@ impl<'a> Renderer<'a> {
             self.stamp(Rest1, self.offset_x + NOTE_MARGIN, STEP_DY * 6);
         }
     }
+
+    /// Add `use` element for either a note or a rest to the DOM.
     fn render_note(&mut self, note: &Note, curs: usize) {
-        if let Some(pitch) = &note.pitch {
-            // FIXME
+        if let Some(_pitch) = &note.pitch {
+            self.render_pitch(&note, curs);
         } else {
             self.render_rest(&note, curs);
         }
     }
+
+    /// Add `use` element for a note to the DOM.
+    fn render_pitch(&mut self, note: &Note, curs: usize) {
+        // FIXME
+    }
+
+    /// Add `use` element for a rest to the DOM.
     fn render_rest(&mut self, note: &Note, curs: usize) {
         let duration = note.duration.1;
         let width = 1.0 / f32::from(duration);
         if curs == self.curs {
             self.cursor(self.offset_x + BARLINE_WIDTH, STEP_DY * 4, (BAR_W * width) as i32);
         }
-        self.stamp(rest_duration(duration), self.offset_x + NOTE_MARGIN, STAFF_DY);
-        self.offset_x += (BAR_W * note.duration.0 as f32 / duration as f32) as i32;
+        self.stamp(GlyphId::rest_duration(duration), self.offset_x + NOTE_MARGIN, STAFF_DY);
+        self.offset_x += (BAR_W * f32::from(note.duration.0) / f32::from(duration)) as i32;
     }
 
     /// Render cursor at a specific position & with a specific width
@@ -137,20 +148,6 @@ impl<'a> Renderer<'a> {
     /// Render staff lines at a specific position
     fn staff(&mut self, x: i32, y: i32, w: i32) {
         self.out.push_str(&format!("<path d=\"M{} {}h{}v{}h-{}v-{}z\"/>\n", x, y - STAFF_WIDTH / 2, w, STAFF_WIDTH, w, STAFF_WIDTH));
-    }
-}
-
-fn rest_duration(duration: u8) -> GlyphId {
-    match duration {
-        1 => Rest1,
-        2 => Rest2,
-        4 => Rest4,
-        8 => Rest8,
-        16 => Rest16,
-        32 => Rest32,
-        64 => Rest64,
-        128 => Rest128,
-        _ => unreachable!(),
     }
 }
 
