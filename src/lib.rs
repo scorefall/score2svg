@@ -11,19 +11,33 @@ pub const DEFAULT: &'static str = include_str!("vfont/bravura.vfont");
 const BAR_WIDTH: i32 = 3200;
 const BAR_W: f32 = BAR_WIDTH as f32;
 
-// A half or whole step.
-const STEP: i32 = 125;
+// Width of the barline.
+const BARLINE_WIDTH: i32 = 32;
+// Width of the staff lines (looks best if it matches BARLINE_WIDTH).
+const STAFF_WIDTH: i32 = BARLINE_WIDTH;
+// A half or whole step visual distance in the measure.
+const STEP_DY: i32 = 125;
+// To traverse the whole height of the staff, you need 8 steps (4 spaces).
+const STAFF_DY: i32 = STEP_DY * 8;
+// Margin X.
+const STAFF_MARGIN_X: i32 = 96;
+// Margin Y.
+const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
+
+// Space before each note.
+const NOTE_MARGIN: i32 = 250;
 
 // Add a stem downwards.
 fn stem_d(out: &mut String, x: i32, y: i32) {
+    // FIXME: Calculated from constants.
     out.push_str(&format!("<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n", x + 15, y + 1895));
 }
 
-// Add a stem upwards. 910
+// Add a stem upwards.
 fn stem_u(out: &mut String, x: i32, y: i32) {
+    // FIXME: Calculated from constants. 910 (805+105)
     out.push_str(&format!("<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n", x + 15, y + 105));
 }
-
 
 pub struct Renderer<'a> {
     out: String,
@@ -47,15 +61,14 @@ impl<'a> Renderer<'a> {
         Renderer { out, scof, chan, curs, vfont, screen_width, offset_x }
     }
     pub fn render(mut self) -> String {
-        self.out.push_str("<svg viewBox=\"0 0 8192 2048\">\n");
+        self.out.push_str("<svg>\n");
         self.out.push_str(self.vfont);
         self.render_body();
         self.out.push_str("</svg>");
         self.out
     }
     fn render_body(&mut self) {
-        let margin_x = 96;
-        let screen_width = self.screen_width - margin_x;
+        let screen_width = self.screen_width - STAFF_MARGIN_X;
 
         for bar in 0..9 {
             let position = BAR_WIDTH * bar as i32;
@@ -63,25 +76,19 @@ impl<'a> Renderer<'a> {
                 break;
             }
 
-            let cursor_dims = if bar == 0 {
-                Some((0.0, 0.25))
-            } else {
-                None
-            };
-            self.offset_x = margin_x + position;
-            self.render_measure(cursor_dims, bar);
-            self.stamp(Barline, margin_x + position + BAR_WIDTH, 1500);
+            self.offset_x = STAFF_MARGIN_X + position;
+            self.render_measure(bar);
+            self.stamp(Barline, STAFF_MARGIN_X + position + BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
         }
 
         // 5 line staff
         for i in 0..5 {
-            self.staff(margin_x, STEP * (4 + i * 2), screen_width);
+            self.staff(STAFF_MARGIN_X, STEP_DY * (i * 2) + STAFF_MARGIN_Y, screen_width);
         }
     }
 
-    /// - `cursor_dims`: If cursor should be drawn, % position and % width.
     /// - `bar`: measure number.
-    fn render_measure(&mut self, cursor_dims: Option<(f32, f32)>, bar: usize) {
+    fn render_measure(&mut self, bar: usize) {
         let mut empty = true;
         let mut curs = 0;
 
@@ -97,7 +104,7 @@ impl<'a> Renderer<'a> {
         }
 
         if empty {
-            self.stamp(Rest1, self.offset_x + 250, 1000 -STEP * 2);
+            self.stamp(Rest1, self.offset_x + NOTE_MARGIN, STEP_DY * 6);
         }
     }
     fn render_note(&mut self, note: &Note, curs: usize) {
@@ -111,21 +118,25 @@ impl<'a> Renderer<'a> {
         let duration = note.duration.1;
         let width = 1.0 / f32::from(duration);
         if curs == self.curs {
-            self.cursor(self.offset_x + 32, 1000 - STEP * 4,
-                (BAR_W * width) as i32);
+            self.cursor(self.offset_x + BARLINE_WIDTH, STEP_DY * 4, (BAR_W * width) as i32);
         }
-        self.stamp(rest_duration(duration), self.offset_x + 250, 1000);
+        self.stamp(rest_duration(duration), self.offset_x + NOTE_MARGIN, STAFF_DY);
         self.offset_x += (BAR_W * note.duration.0 as f32 / duration as f32) as i32;
     }
+
+    /// Render cursor at a specific position & with a specific width
     fn cursor(&mut self, x: i32, y: i32, w: i32) {
-        self.out.push_str(&format!("<path d=\"M{} {}h{}v1000h-{}v-1000z\" fill=\"#AAF\"/>\n", x, y, w, w));
+        self.out.push_str(&format!("<path d=\"M{} {}h{}v{}h-{}v-{}z\" fill=\"#AAF\"/>\n", x, y, w, STAFF_DY, w, STAFF_DY));
     }
+
     /// Render a glyph at a specific position
     fn stamp(&mut self, u: GlyphId, x: i32, y: i32) {
         self.out.push_str(&format!("<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>\n", x, y, u as u32));
     }
+
+    /// Render staff lines at a specific position
     fn staff(&mut self, x: i32, y: i32, w: i32) {
-        self.out.push_str(&format!("<path d=\"M{} {}h{}v32h-{}v-32z\"/>\n", x, y - 16, w, w));
+        self.out.push_str(&format!("<path d=\"M{} {}h{}v{}h-{}v-{}z\"/>\n", x, y - STAFF_WIDTH / 2, w, STAFF_WIDTH, w, STAFF_WIDTH));
     }
 }
 
@@ -146,29 +157,29 @@ fn rest_duration(duration: u8) -> GlyphId {
 #[cfg(test)]
 mod tests {
 
-//    stamp(out, NoteheadFill, offset_x + 2000, 1000 - STEP * 3);
-//    stem_d(out, offset_x + 2000 + 15, -STEP * 3);
+//    stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
+//    stem_d(out, offset_x + 2000 + 15, -STEP_DY * 3);
 /*    // Clef
-    stamp(out, ClefC, 96, 1000);
+    stamp(out, ClefC, 96, STAFF_DY);
     // Time Signature
-    stamp(out, TimeSig3, 96 + 1000, 1000 - STEP * 2); // 421
-    stamp(out, TimeSig4, 96 + 1000 - ((470 - 421) / 2), 1000 + STEP * 2); // 470*/
+    stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
+    stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470*/
 
 /*    // Draw 
-    stamp(out, NoteheadFill, 96 + 2000, 1000 - STEP * 3);
-    stem_d(out, 96 + 2000 + 15, -STEP * 3);
+    stamp(out, NoteheadFill, 96 + 2000, STAFF_DY - STEP_DY * 3);
+    stem_d(out, 96 + 2000 + 15, -STEP_DY * 3);
     // Draw
-    stamp(out, NoteheadFill, 96 + 2000 + 1000, 1000 + STEP * 3);
-    stem_u(out, 96 + (2000 + 265) + 1000 + 15, STEP * 3);
+    stamp(out, NoteheadFill, 96 + 2000 + STAFF_DY, STAFF_DY + STEP_DY * 3);
+    stem_u(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);
 
     // Draw 
-    stamp(out, NoteheadHalf, 96 + 2000 + 2000, 1000);
+    stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
     stem_d(out, 96 + 2000 + 2000 + 15, 0);
 
     // Barline
     stamp(out, Barline, 96 + 2000 + 4000, 1500);
 
     // Draw
-    stamp(out, NoteheadHalf, 96 + 2000 + 4400, 1000);
+    stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
     stem_u(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
 }
