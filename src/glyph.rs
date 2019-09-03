@@ -18,25 +18,16 @@ pub enum GlyphId {
     StemBowTailpiece = 0xE216,
 
     // 8th-1024th Flags
-    FlagUp8 = 0xE240, // LP: 0xE21D
-    FlagDown8 = 0xE241, // LP: 0xE222
-    FlagUp16 = 0xE242, // LP: 0xE21E
-    FlagDown16 = 0xE243, // LP: 0xE223
-    FlagUp32 = 0xE244, // LP: 0xE21F
-    FlagDown32 = 0xE245, // LP: 0xE224
-    FlagUp64 = 0xE246, // LP: 0xE220
-    FlagDown64 = 0xE247, // LP: 0xE225
-    FlagUp128 = 0xE248, // LP: 0xE221
-    FlagDown128 = 0xE249, // LP: 0xE226
-/*    FlagUp256 = 0xE24A,
-    FlagDown256 = 0xE24B,
-    FlagUp512 = 0xE24C,
-    FlagDown512 = 0xE24D,
-    FlagUp1024 = 0xE24E,
-    FlagDown1024 = 0xE24F,*/
-
-    // -- NOTEHEADS --
-    // Double Whole Note Notehead (8 beats)
+    FlagUp8 = 0xE240,             // LP: 0xE21D
+    FlagDown8 = 0xE241,           // LP: 0xE222
+    FlagUp16 = 0xE242,            // LP: 0xE21E
+    FlagDown16 = 0xE243,          // LP: 0xE223
+    FlagUp32 = 0xE244,            // LP: 0xE21F
+    FlagDown32 = 0xE245,          // LP: 0xE224
+    FlagUp64 = 0xE246,            // LP: 0xE220
+    FlagDown64 = 0xE247,          // LP: 0xE225
+    FlagUp128 = 0xE248,           // LP: 0xE221
+    FlagDown128 = 0xE249,         // LP: 0xE226
     NoteheadDoubleWhole = 0xE0A0, // 0xE191
     NoteheadDoubleWholeX = 0xE0A6,
     NoteheadDoubleWholeSquare = 0xE0A1,
@@ -45,13 +36,13 @@ pub enum GlyphId {
     NoteheadOutlineSquare = 0xE0B8,
     NoteheadOutlineLargeSquare = 0xE11B,
     // Whole Note
-    NoteheadWhole = 0xE0A2, // 0xE192
+    NoteheadWhole = 0xE0A2,  // 0xE192
     NoteheadWholeX = 0xE0A7, // 0xE1A0
     // Half Note
-    NoteheadHalf = 0xE0A3, // 0xE193
+    NoteheadHalf = 0xE0A3,  // 0xE193
     NoteheadHalfX = 0xE0A8, // 0xE1A1
     // Quarter And Smaller Note Nothead (< 2 beats)
-    NoteheadFill = 0xE0A4, // 0xE194
+    NoteheadFill = 0xE0A4,  // 0xE194
     NoteheadFillX = 0xE0A9, // 0xE1A2
     NoteheadSquare = 0xE0B9,
     NoteheadLargeSquare = 0xE11A,
@@ -62,19 +53,14 @@ pub enum GlyphId {
     // Half Rest
     Rest2 = 0xE4E4, // LP: 0xE101
     // Quarter Rest (2 Styles Default=Modern)
-    Rest4 = 0xE4E5, // LP: 0xE108
+    Rest4 = 0xE4E5,    // LP: 0xE108
     Rest4Old = 0xE4F2, // LP: 0x109
     // ...
-    Rest8 = 0xE4E6, // LP: E10A
-    Rest16 = 0xE4E7, // LP: E10B
-    Rest32 = 0xE4E8, // LP: E10C
-    Rest64 = 0xE4E9, // LP: E10D
+    Rest8 = 0xE4E6,   // LP: E10A
+    Rest16 = 0xE4E7,  // LP: E10B
+    Rest32 = 0xE4E8,  // LP: E10C
+    Rest64 = 0xE4E9,  // LP: E10D
     Rest128 = 0xE4EA, // LP: E10E
-/*    Rest256 = 0xE4EB, // 
-    Rest512 = 0xE4EC, // 
-    Rest1024 = 0xE4ED, // */
-
-    // Pitch Bends
     PitchPlop = 0xE5E0,
     PitchScoop = 0xE5D0,
     PitchSmear = 0xE5E2,
@@ -86,10 +72,6 @@ pub enum GlyphId {
     // Segno
     Segno = 0xE047,
 
-/*    MeasureRepeat1 = 0xE500,
-    MeasureRepeat2 = 0xE501,
-    MeasureRepeat4 = 0xE502,*/
-    // Measure Repeat Begin Dot
     MeasureRepeatUpper = 0xE503,
     // Measure Repeat Slash: Use as many slashes as how many measures to repeat.
     MeasureRepeatSlash = 0xE504,
@@ -102,7 +84,7 @@ pub enum GlyphId {
     RepeatCloseOpen = 0xE042,
 
     // -- Flat & Sharp --
-/*  FlatComma1 = 0xE454,
+    /*  FlatComma1 = 0xE454,
     SharpComma1 = 0xE450,
     FlatComma2 = 0xE455,
     SharpComma2 = 0xE451,
@@ -174,11 +156,11 @@ pub enum GlyphId {
     // Third Tones (2 styles - default=Xenakis)
     SharpThird1 = 0xE470,
     SharpThird1Ferneyhough = 0xE48A,
-//    FlatThird1 = , // FIXME
+    //    FlatThird1 = , // FIXME
     FlatThird1Ferneyhough = 0xE48B,
     SharpThird2 = 0xE471,
     SharpThird2Ferneyhough = 0xE48C,
-//    FlatThird2 = , // FIXME
+    //    FlatThird2 = , // FIXME
     FlatThird2Ferneyhough = 0xE48D,
 
     // Grace Note
@@ -194,8 +176,8 @@ pub enum GlyphId {
     ClefCChange = 0xE07B,
     // Treble Clef
     ClefG = 0xE050,
-//    ClefGCombiningAlta = 0xE059,
-//    ClefGCombiningBassa = 0xE058,
+    //    ClefGCombiningAlta = 0xE059,
+    //    ClefGCombiningBassa = 0xE058,
     ClefGChange = 0xE07A,
     // Bass Clef
     ClefF = 0xE062,
@@ -204,17 +186,17 @@ pub enum GlyphId {
     Clef8 = 0xE07D,
     Clef15 = 0xE07E,
     // TODO: Group measures transpose by some number of octaves
-/*    Clef8 = 0xE510,
+    /*    Clef8 = 0xE510,
     Clef15 = 0xE514,
     Clef22 = 0xE517,*/
     ClefLParens = 0xE51A,
     ClefRParens = 0xE51B,
-//    Clef8vaBassa = ,
-//    Clef15maBassa = ,
-//    Clef22maBassa = ,
-//    Clef8vaAlta = ,
-//    Clef15maAlta = ,
-//    Clef22maAlta = ,
+    //    Clef8vaBassa = ,
+    //    Clef15maBassa = ,
+    //    Clef22maBassa = ,
+    //    Clef8vaAlta = ,
+    //    Clef15maAlta = ,
+    //    Clef22maAlta = ,
 
     // Time Signature
     TimeSig0 = 0xE080, // 0x0030
@@ -234,11 +216,11 @@ pub enum GlyphId {
     TimeSigPlus = 0xE08C,
     TimeSigNumPlus = 0xE08D, // 0x002B
     // TODO ???
-/*    TimeSigNum0 = 0xF5B7, 
-    TimeSigNum1 = 0xF5B9, 
-    TimeSigNum2 = 0xF5BB, 
-    TimeSigNum3 = 0xF5BD, 
-    TimeSigNum4 = 0xF5BF, 
+    /*    TimeSigNum0 = 0xF5B7,
+    TimeSigNum1 = 0xF5B9,
+    TimeSigNum2 = 0xF5BB,
+    TimeSigNum3 = 0xF5BD,
+    TimeSigNum4 = 0xF5BF,
     TimeSigNum5 = 0xF5C1,
     TimeSigNum6 = 0xF5C3,
     TimeSigNum7 = 0xF5C5,
@@ -254,7 +236,6 @@ pub enum GlyphId {
     TimeSigDen7 = 0xF5C4,
     TimeSigDen8 = 0xF5C6,
     TimeSigDen9 = 0xF5C8,*/
-
     // Tremelo
     Tremelo1 = 0xE220,
     Tremelo2 = 0xE221,
@@ -263,7 +244,7 @@ pub enum GlyphId {
     Tremelo5 = 0xE224,
 
     // Dynamics
-/*    PPPPPP = 0xE527,
+    /*    PPPPPP = 0xE527,
     PPPPP = 0xE528,
     PPPP = 0xE529,
     PPP = 0xE52A,
@@ -275,18 +256,6 @@ pub enum GlyphId {
     S = 0xE524, // 0x0073
     Z = 0xE525, // 0x007A
     N = 0xE526,
-/*    MP = 0xE52C,
-    MF = 0xE52D,
-    F = 0x,
-    FF = 0x,
-    FFF = 0x,
-    FFFF = 0x,
-    FFFFF = 0x,
-    FFFFFF = 0x,*/
-
-    // Beam TODO: How do we do this?
-
-    // Glissandos
     GlissUpShort = 0xE5D1,
     GlissUpMedium = 0xE5D2,
     GlissUpLong = 0xE5D3,
@@ -339,11 +308,41 @@ impl GlyphId {
 
         Some(match duration {
             1 | 2 | 4 => return None,
-            8 => if up { FlagUp8 } else { FlagDown8 },
-            16 => if up { FlagUp16 } else { FlagDown16 },
-            32 => if up { FlagUp32 } else { FlagDown32 },
-            64 => if up { FlagUp64 } else { FlagDown64 },
-            128 => if up { FlagUp128 } else { FlagDown128 },
+            8 => {
+                if up {
+                    FlagUp8
+                } else {
+                    FlagDown8
+                }
+            }
+            16 => {
+                if up {
+                    FlagUp16
+                } else {
+                    FlagDown16
+                }
+            }
+            32 => {
+                if up {
+                    FlagUp32
+                } else {
+                    FlagDown32
+                }
+            }
+            64 => {
+                if up {
+                    FlagUp64
+                } else {
+                    FlagDown64
+                }
+            }
+            128 => {
+                if up {
+                    FlagUp128
+                } else {
+                    FlagDown128
+                }
+            }
             _ => unreachable!(),
         })
     }
@@ -351,31 +350,54 @@ impl GlyphId {
     /// Get the notehead glyph for a note with a specific duration
     pub(super) fn notehead_duration(duration: u8) -> Self {
         use GlyphId::*;
-        Self::notehead_variants(NoteheadWhole, NoteheadHalf, NoteheadFill, duration)
+        Self::notehead_variants(
+            NoteheadWhole,
+            NoteheadHalf,
+            NoteheadFill,
+            duration,
+        )
     }
 
     /// Get the notehead glyph for a note with a specific duration
     pub(super) fn x_notehead_duration(duration: u8) -> Self {
         use GlyphId::*;
-        Self::notehead_variants(NoteheadWholeX, NoteheadHalfX, NoteheadFillX, duration)
+        Self::notehead_variants(
+            NoteheadWholeX,
+            NoteheadHalfX,
+            NoteheadFillX,
+            duration,
+        )
     }
 
     /// Get the square notehead glyph for a note with a specific duration
     pub(super) fn square_notehead_duration(duration: u8) -> Self {
         use GlyphId::*;
-        Self::notehead_variants(NoteheadOutlineSquare, NoteheadOutlineSquare, NoteheadSquare, duration)
+        Self::notehead_variants(
+            NoteheadOutlineSquare,
+            NoteheadOutlineSquare,
+            NoteheadSquare,
+            duration,
+        )
     }
 
     /// Get the large square notehead glyph for a note with a specific duration
     pub(super) fn large_square_notehead_duration(duration: u8) -> Self {
         use GlyphId::*;
-        Self::notehead_variants(NoteheadOutlineLargeSquare, NoteheadOutlineLargeSquare, NoteheadLargeSquare, duration)
+        Self::notehead_variants(
+            NoteheadOutlineLargeSquare,
+            NoteheadOutlineLargeSquare,
+            NoteheadLargeSquare,
+            duration,
+        )
     }
 
     /// Given a duration and set of notehead glyphs, choose appropriate glyph
-    fn notehead_variants(whole: GlyphId, half: GlyphId, fill: GlyphId, duration: u8)
-        -> Self
-    {
+    fn notehead_variants(
+        whole: GlyphId,
+        half: GlyphId,
+        fill: GlyphId,
+        duration: u8,
+    ) -> Self {
         if duration > 4 {
             fill
         } else {
