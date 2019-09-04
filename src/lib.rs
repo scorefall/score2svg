@@ -27,7 +27,7 @@ const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
 // Space before each note.
 const NOTE_MARGIN: i32 = 250;
 
-const CURSOR_COLOR: &str = "F0F";
+const CURSOR_COLOR: &str = "ff14e2";
 
 pub struct Renderer<'a> {
     out: String,
