@@ -1,5 +1,7 @@
 pub use svg;
 
+use std::fmt;
+
 use scof::{Marking, Note, Scof};
 mod glyph;
 
@@ -90,12 +92,13 @@ impl<'a> Renderer<'a> {
             }
 
             self.offset_x = STAFF_MARGIN_X + position;
-            self.render_measure(measure);
-            self.stamp(
-                Barline,
-                STAFF_MARGIN_X + position + BAR_WIDTH,
-                STAFF_MARGIN_Y + STAFF_DY,
-            );
+            let mut cursor = Cursor::new();
+            cursor.chan = self.chan;
+            cursor.measure = self.measure;
+            cursor.marking = self.curs;
+            let mut elem = MeasureElem::new(self.offset_x, 0);
+            elem.add_markings(self.scof, self.chan, measure, &cursor);
+            self.out.push_str(&format!("{}", elem));
         }
 
         // 5 line staff
@@ -106,124 +109,6 @@ impl<'a> Renderer<'a> {
                 screen_width,
             );
         }
-    }
-
-    /// - `measure`: measure number.
-    fn render_measure(&mut self, measure: usize) {
-        let mut empty = true;
-        let mut curs = 0;
-
-        while let Some(marking) = self.scof.marking(measure, self.chan, curs) {
-            if empty {
-                empty = false;
-            }
-            match marking {
-                Marking::Note(note) => self.render_note(&note, curs, measure),
-                _ => unreachable!(),
-            }
-            curs += 1;
-        }
-
-        if empty {
-            self.stamp(Rest1, self.offset_x + NOTE_MARGIN, STEP_DY * 6);
-        }
-    }
-
-    /// Add `use` element for either a note or a rest to the DOM.
-    fn render_note(&mut self, note: &Note, curs: usize, measure: usize) {
-        let duration = (f32::from(note.duration.0), f32::from(note.duration.1));
-
-        // Add cursor, if it's here
-        self.render_cursor(note, curs, measure, duration);
-
-        // Render either note or rest
-        if let Some(_pitch) = &note.pitch {
-            self.render_pitch(&note, note.duration.1, duration);
-        } else {
-            self.render_rest(&note, note.duration.1, duration);
-        }
-        self.offset_x += (BAR_W * duration.0 * duration.1.recip()) as i32;
-    }
-
-    /// Add `use` element for a note to the DOM.
-    fn render_cursor(
-        &mut self,
-        note: &Note,
-        curs: usize,
-        measure: usize,
-        duration: (f32, f32),
-    ) {
-        let duration_denom = note.duration.1;
-        let width = duration.0 * duration.1.recip(); // Fraction to float.
-        if curs == self.curs && measure == self.measure {
-            self.cursor(
-                self.offset_x + BARLINE_WIDTH,
-                STEP_DY * 4,
-                (BAR_W * width) as i32,
-            );
-        }
-    }
-
-    /// Add `use` element for a note to the DOM.
-    fn render_pitch(&mut self, note: &Note, dur: u8, duration: (f32, f32)) {
-        let offset = STEP_DY * note.visual_distance();
-        // Draw
-        self.stamp(
-            GlyphId::notehead_duration(dur),
-            self.offset_x + NOTE_MARGIN,
-            STAFF_DY + offset,
-        );
-        self.stem_down(self.offset_x + NOTE_MARGIN + 15, offset);
-        /*        // Draw
-        stamp(out, NoteheadFill, 96 + 2000 + STAFF_DY, STAFF_DY + STEP_DY * 3);
-        stem_up(out, 96 + (2000 + 265) + STAFF_DY + 15, STEP_DY * 3);*/
-
-        // FIXME
-    }
-
-    // Add a stem downwards.
-    fn stem_down(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants.
-        self.out.push_str(&format!(
-            "<path d=\"M{} {}c-1 14-29 14-30 0v-855l30 50v855z\"/>\n",
-            x + 15,
-            y + 1895
-        ));
-    }
-
-    // Add a stem upwards.
-    fn stem_up(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants. 910 (805+105)
-        self.out.push_str(&format!(
-            "<path d=\"M{} {}c-1 -14-29-14-30 0v805l30 50v-805z\"/>\n",
-            x + 15,
-            y + 105
-        ));
-    }
-
-    /// Add `use` element for a rest to the DOM.
-    fn render_rest(&mut self, note: &Note, dur: u8, duration: (f32, f32)) {
-        self.stamp(
-            GlyphId::rest_duration(dur),
-            self.offset_x + NOTE_MARGIN,
-            STAFF_DY,
-        );
-    }
-
-    /// Render cursor at a specific position & with a specific width
-    fn cursor(&mut self, x: i32, y: i32, w: i32) {
-        self.out.push_str(&format!(
-            "<path d=\"M{} {}h{}v{}h-{}v-{}z\" fill=\"#{}\"/>\n",
-            x, y, w, STAFF_DY, w, STAFF_DY, CURSOR_COLOR
-        ));
-    }
-
-    /// Render a glyph at a specific position
-    fn stamp(&mut self, u: GlyphId, x: i32, y: i32) {
-        self.out.push_str(&format!(
-            "<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>\n",
-            x, y, u as u32
-        ));
     }
 
     /// Render staff lines at a specific position
@@ -240,8 +125,283 @@ impl<'a> Renderer<'a> {
     }
 }
 
+pub struct Cursor {
+    /// Channel number
+    chan: usize,
+    /// Measure number
+    measure: usize,
+    /// Marking number within measure
+    marking: usize,
+}
+
+impl Cursor {
+    /// Create a new cursor
+    pub fn new() -> Self {
+        let chan = 0;
+        let measure = 0;
+        let marking = 0;
+        Cursor { chan, measure, marking }
+    }
+    fn is_at(&self, chan: usize, measure: usize, marking: usize) -> bool {
+        self.chan == chan &&
+        self.measure == measure &&
+        self.marking == marking
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Duration {
+    num: u8,
+    den: u8,
+}
+
+impl Duration {
+    fn new(dur: (u8, u8)) -> Self {
+        let num = dur.0;
+        let den = dur.1;
+        Duration { num, den }
+    }
+    fn width(&self) -> i32 {
+        let num = f32::from(self.num);
+        let den = f32::from(self.den);
+        (BAR_W * num * den.recip()) as i32
+    }
+}
+
+pub struct Rect {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+impl fmt::Display for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#{}\"/>",
+            self.x, self.y, self.width, self.height, CURSOR_COLOR)
+    }
+}
+
+impl Rect {
+    fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
+        Rect { x, y, width, height }
+    }
+}
+
+pub struct Use {
+    x: i32,
+    y: i32,
+    glyph: GlyphId,
+}
+
+impl fmt::Display for Use {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<use x=\"{}\" y=\"{}\" xlink:href=\"#{:x}\"/>", self.x,
+            self.y, self.glyph as u32)
+    }
+}
+
+impl Use {
+    fn new(x: i32, y: i32, glyph: GlyphId) -> Self {
+        Use { x, y, glyph }
+    }
+}
+
+pub struct Group {
+    x: i32,
+    y: i32,
+    elements: Vec<Element>,
+}
+
+impl fmt::Display for Group {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<g transform=\"translate({} {})\">", self.x, self.y)?;
+        for elem in &self.elements {
+            write!(f, "{}", elem);
+        }
+        write!(f, "</g>")
+    }
+}
+
+impl Group {
+    fn new(x: i32, y: i32) -> Self {
+        let elements = vec![];
+        Group { x, y, elements }
+    }
+    fn push(&mut self, elem: Element) {
+        self.elements.push(elem);
+    }
+}
+
+pub struct Path {
+    d: String,
+}
+
+impl fmt::Display for Path {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<path d=\"{}\"/>", self.d)
+    }
+}
+
+impl Path {
+    fn new(d: String) -> Self {
+        Path { d }
+    }
+}
+
+pub enum Element {
+    Group(Group),
+    Rect(Rect),
+    Use(Use),
+    Path(Path),
+}
+
+impl fmt::Display for Element {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Element::Group(g) => g.fmt(f),
+            Element::Rect(r) => r.fmt(f),
+            Element::Use(u) => u.fmt(f),
+            Element::Path(p) => p.fmt(f),
+        }
+    }
+}
+
+pub struct MeasureElem {
+    group: Group,
+    x: i32, // FIXME: remove these when groups are supported
+    y: i32, // FIXME: remove these when groups are supported
+    width: i32,
+}
+
+impl fmt::Display for MeasureElem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.group)
+    }
+}
+
+impl MeasureElem {
+    /// Create a new measure element
+    pub fn new(x: i32, y: i32) -> Self {
+        let group = Group::new(x, y);
+        let width = 0;
+        MeasureElem { group, x, y, width }
+    }
+    /// Add markings
+    ///
+    /// - `scof`: The score.
+    /// - `chan`: Channel number.
+    /// - `measure`: Measure number.
+    /// - `cursor`: Current cursor position.
+    pub fn add_markings(&mut self, scof: &Scof, chan: usize, measure: usize,
+        cursor: &Cursor)
+    {
+        let mut curs = 0;
+
+        while let Some(marking) = scof.marking(measure, chan, curs) {
+            match marking {
+                Marking::Note(note) => {
+                    let duration = Duration::new(note.duration);
+                    if cursor.is_at(chan, measure, curs) {
+                        self.add_cursor(duration);
+                    }
+                    self.add_mark(&note);
+                    self.width += duration.width();
+                },
+                _ => unreachable!(),
+            }
+            curs += 1;
+        }
+
+        if curs == 0 {
+            self.add_use(Rest1, NOTE_MARGIN, STEP_DY * 6);
+        }
+
+        self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
+    }
+
+    fn add_cursor(&mut self, duration: Duration) {
+        self.group.push(Element::Rect(Rect::new(
+            self.x + self.width + BARLINE_WIDTH,
+            STEP_DY * 4,
+            duration.width() as u32,
+            STAFF_DY as u32)));
+    }
+
+    /// Add mark node for either a note or a rest
+    fn add_mark(&mut self, note: &Note) {
+        match &note.pitch {
+            Some(_pitch) => self.add_pitch(note),
+            None => self.add_rest(note),
+        }
+    }
+
+    /// Add elements for a note
+    fn add_pitch(&mut self, note: &Note) {
+        let duration = Duration::new(note.duration);
+        let offset_y = STEP_DY * note.visual_distance();
+
+        let cp = GlyphId::notehead_duration(duration.den);
+        self.add_use(cp, self.width + NOTE_MARGIN, STAFF_DY + offset_y);
+        self.add_stem_down(self.width + NOTE_MARGIN + 15, offset_y);
+    }
+
+    /// Add a stem downwards.
+    fn add_stem_down(&mut self, x: i32, y: i32) {
+        // FIXME: Calculated from constants.
+        let d = format!("M{} {}c-1 14-29 14-30 0v-855l30 50v855z",
+            self.x + x + 15,
+            y + 1895);
+        self.group.push(Element::Path(Path::new(d)));
+    }
+
+    /// Add a stem upwards.
+    fn add_stem_up(&mut self, x: i32, y: i32) {
+        // FIXME: Calculated from constants. 910 (805+105)
+        let d = format!("M{} {}c-1 -14-29-14-30 0v805l30 50v-805z",
+            self.x + x + 15,
+            y + 105);
+        self.group.push(Element::Path(Path::new(d)));
+    }
+
+    /// Add `use` element for a rest
+    fn add_rest(&mut self, note: &Note) {
+        let duration = Duration::new(note.duration);
+        let glyph = GlyphId::rest_duration(duration.den);
+        let x = self.width + NOTE_MARGIN;
+        let y = STAFF_DY;
+        self.add_use(glyph, x, y);
+    }
+
+    /// Add use element
+    fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
+        self.group.push(Element::Use(Use::new(self.x + x, y, glyph)));
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn rect() {
+        assert_eq!(Rect::new(10, 12, 25, 20).to_string(),
+        "<rect x=\"10\" y=\"12\" width=\"25\" height=\"20\" fill=\"#ff14e2\"/>");
+    }
+
+    #[test]
+    fn glyph() {
+        assert_eq!(Use::new(37, 21, GlyphId::StemHarpStringNoise).to_string(),
+        "<use x=\"37\" y=\"21\" xlink:href=\"#e21f\"/>");
+    }
+
+    #[test]
+    fn group() {
+        let mut group = Group::new();
+        group.push(Element::Use(Use::new(2, 3, GlyphId::NoteheadWhole)));
+        assert_eq!(group.to_string(),
+        "<g><use x=\"2\" y=\"3\" xlink:href=\"#e0a2\"/></g>");
+    }
 
     //    stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
     //    stem_down(out, offset_x + 2000 + 15, -STEP_DY * 3);

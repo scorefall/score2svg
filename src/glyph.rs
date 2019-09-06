@@ -4,6 +4,7 @@
 ///
 /// The IDs match SMuFL.  
 #[repr(u32)]
+#[derive(Clone, Copy)]
 pub enum GlyphId {
     // Barline
     Barline = 0xE030,
