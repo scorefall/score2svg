@@ -5,10 +5,8 @@ use std::fmt;
 use scof::{Marking, Note, Scof};
 mod glyph;
 
-use glyph::GlyphId::{self, *};
-
-/// Default font (Bravura).
-pub const DEFAULT: &str = include_str!("vfont/bravura.vfont");
+pub use glyph::GlyphId;
+use glyph::GlyphId::*;
 
 const BAR_WIDTH: i32 = 3200;
 const BAR_W: f32 = BAR_WIDTH as f32;
@@ -31,13 +29,35 @@ const NOTE_MARGIN: i32 = 250;
 
 const CURSOR_COLOR: &str = "ff14e2";
 
+/// Get Bravura font paths
+pub fn bravura() -> Vec<Path> {
+    include!("vfont/bravura.vfont")
+}
+
+/// 5 line staff
+pub fn staff_path_5(screen_width: i32) -> Path {
+    let mut d = String::new();
+    for i in 0..5 {
+        d.push_str(&staff(STAFF_MARGIN_X,
+            STEP_DY * (i * 2) + STAFF_MARGIN_Y,
+            screen_width,
+        ));
+    }
+    Path::new(None, d)
+}
+
+/// Render staff lines at a specific position
+fn staff(x: i32, y: i32, w: i32) -> String {
+    format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
+        w, STAFF_WIDTH, w, STAFF_WIDTH)
+}
+
 pub struct Renderer<'a> {
     out: String,
     scof: &'a Scof,
     chan: usize,
     curs: usize,
     measure: usize,
-    vfont: &'a str,
     screen_width: i32,
     /// - `offset_x`: Offset from X origin.
     offset_x: i32,
@@ -48,14 +68,12 @@ impl<'a> Renderer<'a> {
     /// - `chan`: Which channel the bar is on.
     /// - `curs`: User cursor (within measure).
     /// - `measure`: User cursor (which measure).
-    /// - `vfont`: The font we're using (currently must be bravura).
     /// - `screen_width`: How many units within the viewport width.
     pub fn new(
         scof: &'a Scof,
         chan: usize,
         curs: usize,
         measure: usize,
-        vfont: &'a str,
         screen_width: i32,
     ) -> Self {
         let out = String::new();
@@ -66,7 +84,6 @@ impl<'a> Renderer<'a> {
             chan,
             curs,
             measure,
-            vfont,
             screen_width,
             offset_x,
         }
@@ -74,10 +91,7 @@ impl<'a> Renderer<'a> {
 
     /// Generate an SVG string.
     pub fn render(mut self) -> String {
-        self.out.push_str("<svg>\n");
-        self.out.push_str(self.vfont);
         self.render_body();
-        self.out.push_str("</svg>");
         self.out
     }
 
@@ -100,28 +114,6 @@ impl<'a> Renderer<'a> {
             elem.add_markings(self.scof, self.chan, measure, &cursor);
             self.out.push_str(&format!("{}", elem));
         }
-
-        // 5 line staff
-        for i in 0..5 {
-            self.staff(
-                STAFF_MARGIN_X,
-                STEP_DY * (i * 2) + STAFF_MARGIN_Y,
-                screen_width,
-            );
-        }
-    }
-
-    /// Render staff lines at a specific position
-    fn staff(&mut self, x: i32, y: i32, w: i32) {
-        self.out.push_str(&format!(
-            "<path d=\"M{} {}h{}v{}h-{}v-{}z\"/>\n",
-            x,
-            y - STAFF_WIDTH / 2,
-            w,
-            STAFF_WIDTH,
-            w,
-            STAFF_WIDTH
-        ));
     }
 }
 
@@ -234,18 +226,28 @@ impl Group {
 }
 
 pub struct Path {
-    d: String,
+    pub id: Option<String>,
+    pub d: String,
 }
 
 impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<path d=\"{}\"/>", self.d)
+        if let Some(ref id) = self.id {
+            write!(f, "<path id=\"{}\" d=\"{}\"/>", id, self.d)
+        } else {
+            write!(f, "<path d=\"{}\"/>", self.d)
+        }
     }
 }
 
 impl Path {
-    fn new(d: String) -> Self {
-        Path { d }
+    fn new<T: Into<String>>(id: Option<T>, d: T) -> Self {
+        let id = match id {
+            Some(id) => Some(id.into()),
+            None => None,
+        };
+        let d = d.into();
+        Path { id, d }
     }
 }
 
@@ -352,7 +354,7 @@ impl MeasureElem {
         let d = format!("M{} {}c-1 14-29 14-30 0v-855l30 50v855z",
             self.x + x + 15,
             y + 1895);
-        self.group.push(Element::Path(Path::new(d)));
+        self.group.push(Element::Path(Path::new(None, d)));
     }
 
     /// Add a stem upwards.
@@ -361,7 +363,7 @@ impl MeasureElem {
         let d = format!("M{} {}c-1 -14-29-14-30 0v805l30 50v-805z",
             self.x + x + 15,
             y + 105);
-        self.group.push(Element::Path(Path::new(d)));
+        self.group.push(Element::Path(Path::new(None, d)));
     }
 
     /// Add `use` element for a rest
