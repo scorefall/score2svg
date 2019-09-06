@@ -345,7 +345,10 @@ impl MeasureElem {
 
         let cp = GlyphId::notehead_duration(duration.den);
         self.add_use(cp, self.width + NOTE_MARGIN, STAFF_DY + offset_y);
-        self.add_stem_down(self.width + NOTE_MARGIN + 15, offset_y);
+        // Only draw stem if not a whole note.
+        if duration.num != 1 || duration.den != 1 {
+            self.add_stem_down(self.width + NOTE_MARGIN + 15, offset_y);
+        }
     }
 
     /// Add a stem downwards.
