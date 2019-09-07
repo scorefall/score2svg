@@ -6,9 +6,8 @@ mod glyph;
 pub use glyph::GlyphId;
 use glyph::GlyphId::*;
 
+// Width of one bar (measure)
 const BAR_WIDTH: i32 = 3200;
-const BAR_W: f32 = BAR_WIDTH as f32;
-
 // Width of the barline.
 const BARLINE_WIDTH: i32 = 32;
 // Width of the staff lines (looks best if it matches BARLINE_WIDTH).
@@ -47,7 +46,7 @@ impl Duration {
     fn width(&self) -> i32 {
         let num = f32::from(self.num);
         let den = f32::from(self.den);
-        (BAR_W * num * den.recip()) as i32
+        (BAR_WIDTH as f32 * num * den.recip()) as i32
     }
 }
 
@@ -209,9 +208,11 @@ impl MeasureElem {
         }
 
         if is_empty {
-            let duration = Duration::new((1, 1));
-            self.width += duration.width();
-            self.add_use(Rest1, NOTE_MARGIN, STEP_DY * 8);
+            if let Ok(note) = "1R".parse::<Note>() {
+                let duration = Duration::new(note.duration);
+                self.add_rest(&note);
+                self.width += duration.width();
+            }
         }
 
         self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
