@@ -50,68 +50,6 @@ fn staff(x: i32, y: i32, w: i32) -> String {
         w, STAFF_WIDTH, w, STAFF_WIDTH)
 }
 
-pub struct Renderer<'a> {
-    out: String,
-    scof: &'a Scof,
-    chan: usize,
-    curs: usize,
-    measure: usize,
-    screen_width: i32,
-    /// - `offset_x`: Offset from X origin.
-    offset_x: i32,
-}
-
-impl<'a> Renderer<'a> {
-    /// - `scof`: The score.
-    /// - `chan`: Which channel the bar is on.
-    /// - `curs`: User cursor (within measure).
-    /// - `measure`: User cursor (which measure).
-    /// - `screen_width`: How many units within the viewport width.
-    pub fn new(
-        scof: &'a Scof,
-        chan: usize,
-        curs: usize,
-        measure: usize,
-        screen_width: i32,
-    ) -> Self {
-        let out = String::new();
-        let offset_x = 0;
-        Renderer {
-            out,
-            scof,
-            chan,
-            curs,
-            measure,
-            screen_width,
-            offset_x,
-        }
-    }
-
-    /// Generate an SVG string.
-    pub fn render(mut self) -> String {
-        self.render_body();
-        self.out
-    }
-
-    /// Generate body of SVG string.
-    fn render_body(&mut self) {
-        let screen_width = self.screen_width - STAFF_MARGIN_X;
-
-        for measure in 0..9 {
-            let position = BAR_WIDTH * measure as i32;
-            if position > screen_width {
-                break;
-            }
-
-            self.offset_x = STAFF_MARGIN_X + position;
-            let mut cursor = Cursor::new(self.chan, self.measure, self.curs);
-            let mut elem = MeasureElem::new(self.offset_x, 0);
-            elem.add_markings(self.scof, self.chan, measure, &cursor);
-            self.out.push_str(&format!("{}", elem));
-        }
-    }
-}
-
 pub struct Cursor {
     /// Channel number
     chan: usize,
