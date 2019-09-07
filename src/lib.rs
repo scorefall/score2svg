@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scof::{Marking, Note, Scof};
+use scof::{Cursor, Marking, Note, Scof};
 mod glyph;
 
 pub use glyph::GlyphId;
@@ -48,27 +48,6 @@ pub fn staff_path_5(screen_width: i32) -> Path {
 fn staff(x: i32, y: i32, w: i32) -> String {
     format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
         w, STAFF_WIDTH, w, STAFF_WIDTH)
-}
-
-pub struct Cursor {
-    /// Channel number
-    chan: usize,
-    /// Measure number
-    measure: usize,
-    /// Marking number within measure
-    marking: usize,
-}
-
-impl Cursor {
-    /// Create a new cursor
-    pub fn new(chan: usize, measure: usize, marking: usize) -> Self {
-        Cursor { chan, measure, marking }
-    }
-    fn is_at(&self, chan: usize, measure: usize, marking: usize) -> bool {
-        self.chan == chan &&
-        self.measure == measure &&
-        self.marking == marking
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -225,19 +204,18 @@ impl MeasureElem {
     /// Add markings
     ///
     /// - `scof`: The score.
-    /// - `chan`: Channel number.
-    /// - `measure`: Measure number.
+    /// - `curs`: Cursor of measure.
     /// - `cursor`: Current cursor position.
-    pub fn add_markings(&mut self, scof: &Scof, chan: usize, measure: usize,
+    pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor,
         cursor: &Cursor)
     {
-        let mut curs = 0;
-
-        while let Some(marking) = scof.marking(measure, chan, curs) {
+        let mut is_empty = true;
+        while let Some(marking) = scof.marking(&curs) {
+            is_empty = false;
             match marking {
                 Marking::Note(note) => {
                     let duration = Duration::new(note.duration);
-                    if cursor.is_at(chan, measure, curs) {
+                    if *cursor == *curs {
                         self.add_cursor(duration);
                     }
                     self.add_mark(&note);
@@ -245,10 +223,10 @@ impl MeasureElem {
                 },
                 _ => unreachable!(),
             }
-            curs += 1;
+            curs.right_unchecked();
         }
 
-        if curs == 0 {
+        if is_empty {
             self.add_use(Rest1, NOTE_MARGIN, STEP_DY * 6);
         }
 
