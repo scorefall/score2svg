@@ -1,5 +1,3 @@
-pub use svg;
-
 use std::fmt;
 
 use scof::{Marking, Note, Scof};
@@ -106,10 +104,7 @@ impl<'a> Renderer<'a> {
             }
 
             self.offset_x = STAFF_MARGIN_X + position;
-            let mut cursor = Cursor::new();
-            cursor.chan = self.chan;
-            cursor.measure = self.measure;
-            cursor.marking = self.curs;
+            let mut cursor = Cursor::new(self.chan, self.measure, self.curs);
             let mut elem = MeasureElem::new(self.offset_x, 0);
             elem.add_markings(self.scof, self.chan, measure, &cursor);
             self.out.push_str(&format!("{}", elem));
@@ -128,10 +123,7 @@ pub struct Cursor {
 
 impl Cursor {
     /// Create a new cursor
-    pub fn new() -> Self {
-        let chan = 0;
-        let measure = 0;
-        let marking = 0;
+    pub fn new(chan: usize, measure: usize, marking: usize) -> Self {
         Cursor { chan, measure, marking }
     }
     fn is_at(&self, chan: usize, measure: usize, marking: usize) -> bool {
@@ -161,29 +153,31 @@ impl Duration {
 }
 
 pub struct Rect {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub fill: String,
 }
 
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#{}\"/>",
-            self.x, self.y, self.width, self.height, CURSOR_COLOR)
+        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"/>",
+            self.x, self.y, self.width, self.height, &self.fill)
     }
 }
 
 impl Rect {
     fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
-        Rect { x, y, width, height }
+        let fill = format!("#{}", CURSOR_COLOR);
+        Rect { x, y, width, height, fill }
     }
 }
 
 pub struct Use {
-    x: i32,
-    y: i32,
-    glyph: GlyphId,
+    pub x: i32,
+    pub y: i32,
+    pub glyph: GlyphId,
 }
 
 impl fmt::Display for Use {
@@ -200,9 +194,9 @@ impl Use {
 }
 
 pub struct Group {
-    x: i32,
-    y: i32,
-    elements: Vec<Element>,
+    pub x: i32,
+    pub y: i32,
+    pub elements: Vec<Element>,
 }
 
 impl fmt::Display for Group {
@@ -270,10 +264,10 @@ impl fmt::Display for Element {
 }
 
 pub struct MeasureElem {
-    group: Group,
+    pub group: Group,
     x: i32, // FIXME: remove these when groups are supported
     y: i32, // FIXME: remove these when groups are supported
-    width: i32,
+    pub width: i32,
 }
 
 impl fmt::Display for MeasureElem {
