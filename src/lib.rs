@@ -202,24 +202,25 @@ impl fmt::Display for Element {
 }
 
 pub struct MeasureElem {
-    pub group: Group,
-    x: i32, // FIXME: remove these when groups are supported
-    y: i32, // FIXME: remove these when groups are supported
+    pub elements: Vec<Element>,
     pub width: i32,
 }
 
 impl fmt::Display for MeasureElem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.group)
+        for elem in &self.elements {
+            write!(f, "{}", elem)?;
+        }
+        Ok(())
     }
 }
 
 impl MeasureElem {
     /// Create a new measure element
-    pub fn new(x: i32, y: i32) -> Self {
-        let group = Group::new(x, y);
+    pub fn new() -> Self {
+        let elements = vec![];
         let width = 0;
-        MeasureElem { group, x, y, width }
+        MeasureElem { elements, width }
     }
     /// Add markings
     ///
@@ -255,8 +256,8 @@ impl MeasureElem {
     }
 
     fn add_cursor(&mut self, duration: Duration) {
-        self.group.push(Element::Rect(Rect::new(
-            self.x + self.width + BARLINE_WIDTH,
+        self.elements.push(Element::Rect(Rect::new(
+            self.width + BARLINE_WIDTH,
             STEP_DY * 4,
             duration.width() as u32,
             STAFF_DY as u32)));
@@ -287,18 +288,18 @@ impl MeasureElem {
     fn add_stem_down(&mut self, x: i32, y: i32) {
         // FIXME: Calculated from constants.
         let d = format!("M{} {}c-1 14-29 14-30 0v-855l30 50v855z",
-            self.x + x + 15,
+            x + 15,
             y + 1895);
-        self.group.push(Element::Path(Path::new(None, d)));
+        self.elements.push(Element::Path(Path::new(None, d)));
     }
 
     /// Add a stem upwards.
     fn add_stem_up(&mut self, x: i32, y: i32) {
         // FIXME: Calculated from constants. 910 (805+105)
         let d = format!("M{} {}c-1 -14-29-14-30 0v805l30 50v-805z",
-            self.x + x + 15,
+            x + 15,
             y + 105);
-        self.group.push(Element::Path(Path::new(None, d)));
+        self.elements.push(Element::Path(Path::new(None, d)));
     }
 
     /// Add `use` element for a rest
@@ -312,7 +313,7 @@ impl MeasureElem {
 
     /// Add use element
     fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
-        self.group.push(Element::Use(Use::new(self.x + x, y, glyph)));
+        self.elements.push(Element::Use(Use::new(x, y, glyph)));
     }
 }
 
