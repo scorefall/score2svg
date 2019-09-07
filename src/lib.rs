@@ -32,24 +32,6 @@ pub fn bravura() -> Vec<Path> {
     include!("vfont/bravura.vfont")
 }
 
-/// 5 line staff
-pub fn staff_path_5(screen_width: i32) -> Path {
-    let mut d = String::new();
-    for i in 0..5 {
-        d.push_str(&staff(STAFF_MARGIN_X,
-            STEP_DY * (i * 2) + STAFF_MARGIN_Y,
-            screen_width,
-        ));
-    }
-    Path::new(None, d)
-}
-
-/// Render staff lines at a specific position
-fn staff(x: i32, y: i32, w: i32) -> String {
-    format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
-        w, STAFF_WIDTH, w, STAFF_WIDTH)
-}
-
 #[derive(Clone, Copy)]
 struct Duration {
     num: u8,
@@ -227,7 +209,9 @@ impl MeasureElem {
         }
 
         if is_empty {
-            self.add_use(Rest1, NOTE_MARGIN, STEP_DY * 6);
+            let duration = Duration::new((1, 1));
+            self.width += duration.width();
+            self.add_use(Rest1, NOTE_MARGIN, STEP_DY * 8);
         }
 
         self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
@@ -293,6 +277,22 @@ impl MeasureElem {
     fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
         self.elements.push(Element::Use(Use::new(x, y, glyph)));
     }
+
+    /// Add staff
+    pub fn add_staff_5(&mut self) {
+        let mut d = String::new();
+        for i in 0..5 {
+            d.push_str(&staff(0, STEP_DY * (i * 2) + STAFF_MARGIN_Y,
+                self.width));
+        }
+        self.elements.push(Element::Path(Path::new(None, d)))
+    }
+}
+
+/// Render staff lines at a specific position
+fn staff(x: i32, y: i32, w: i32) -> String {
+    format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
+        w, STAFF_WIDTH, w, STAFF_WIDTH)
 }
 
 #[cfg(test)]
