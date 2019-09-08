@@ -270,7 +270,11 @@ impl MeasureElem {
         let duration = Duration::new(note.duration);
         let glyph = GlyphId::rest_duration(duration.den);
         let x = self.width + NOTE_MARGIN;
-        let y = STAFF_DY;
+        let mut y = STAFF_DY;
+        // Position whole rest glyph up 2 steps.
+        if duration.num == 1 && duration.den == 1 {
+            y -= STEP_DY * 2;
+        }
         self.add_use(glyph, x, y);
     }
 
