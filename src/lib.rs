@@ -252,7 +252,7 @@ impl MeasureElem {
             }
         }
 
-        self.add_rect(BAR_WIDTH, BARLINE_WIDTH as u32, None);
+        self.add_rect(self.width, BARLINE_WIDTH as u32, None);
     }
 
     /// Add a cursor
