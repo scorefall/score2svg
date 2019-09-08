@@ -10,17 +10,6 @@ use glyph::GlyphId::*;
 const BAR_WIDTH: i32 = 3200;
 // Width of the barline.
 const BARLINE_WIDTH: i32 = 32;
-// Width of the staff lines (looks best if it matches BARLINE_WIDTH).
-const STAFF_WIDTH: i32 = BARLINE_WIDTH;
-// A half or whole step visual distance in the measure.
-const STEP_DY: i32 = 125;
-// To traverse the whole height of the staff, you need 8 steps (4 spaces).
-const STAFF_DY: i32 = STEP_DY * 8;
-// Margin X.
-const STAFF_MARGIN_X: i32 = 96;
-// Margin Y.
-const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
-
 // Space before each note.
 const NOTE_MARGIN: i32 = 250;
 
@@ -167,9 +156,28 @@ pub struct Staff {
 }
 
 impl Staff {
+    /// A half or whole step visual distance in the measure.
+    const STEP_DY: i32 = 125;
+    /// Margin X
+    const MARGIN_X: i32 = 96;
+    /// Margin Y
+    const MARGIN_Y: i32 = Staff::STEP_DY * 4;
+    /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
+    const LINE_WIDTH: i32 = BARLINE_WIDTH;
+
     /// Create a new staff
     pub fn new(lines: i32) -> Self {
         Staff { lines }
+    }
+
+    /// Get the height of the staff
+    pub fn height(&self) -> i32 {
+        if self.lines > 0 {
+            let spaces = (self.lines - 1);
+            Staff::STEP_DY * spaces * 2
+        } else {
+            0
+        }
     }
 
     /// Create a staff path
@@ -177,9 +185,10 @@ impl Staff {
         let mut d = String::new();
         for i in 0..self.lines {
             let x = 0;
-            let y = STAFF_MARGIN_Y + STEP_DY * (i * 2);
-            let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
-                width, STAFF_WIDTH, width, STAFF_WIDTH);
+            let y = Staff::MARGIN_Y + Staff::STEP_DY * (i * 2)
+                - Staff::LINE_WIDTH / 2;
+            let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y, width,
+                Staff::LINE_WIDTH, width, Staff::LINE_WIDTH);
             d.push_str(line);
         }
         Path::new(None, d)
@@ -241,15 +250,15 @@ impl MeasureElem {
             }
         }
 
-        self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
+        self.add_use(Barline, BAR_WIDTH, Staff::MARGIN_Y + self.staff.height());
     }
 
     fn add_cursor(&mut self, duration: Duration) {
         self.elements.push(Element::Rect(Rect::new(
             self.width + BARLINE_WIDTH,
-            STEP_DY * 4,
+            Staff::MARGIN_Y,
             duration.width() as u32,
-            STAFF_DY as u32)));
+            self.staff.height() as u32)));
     }
 
     /// Add mark node for either a note or a rest
@@ -263,13 +272,13 @@ impl MeasureElem {
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note) {
         let duration = Duration::new(note.duration);
-        let offset_y = STEP_DY * note.visual_distance();
+        let y = Staff::STEP_DY * note.visual_distance();
 
         let cp = GlyphId::notehead_duration(duration.den);
-        self.add_use(cp, self.width + NOTE_MARGIN, STAFF_DY + offset_y);
+        self.add_use(cp, self.width + NOTE_MARGIN, y + self.staff.height());
         // Only draw stem if not a whole note.
         if duration.num != 1 || duration.den != 1 {
-            self.add_stem_down(self.width + NOTE_MARGIN + 15, offset_y);
+            self.add_stem_down(self.width + NOTE_MARGIN + 15, y);
         }
     }
 
@@ -296,10 +305,10 @@ impl MeasureElem {
         let duration = Duration::new(note.duration);
         let glyph = GlyphId::rest_duration(duration.den);
         let x = self.width + NOTE_MARGIN;
-        let mut y = STAFF_DY;
+        let mut y = self.staff.height();
         // Position whole rest glyph up 2 steps.
         if duration.num == 1 && duration.den == 1 {
-            y -= STEP_DY * 2;
+            y -= Staff::STEP_DY * 2;
         }
         self.add_use(glyph, x, y);
     }
