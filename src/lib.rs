@@ -4,11 +4,11 @@ pub use glyph::GlyphId;
 use scof::{Cursor, Marking, Note, Scof};
 use std::fmt;
 
-// Width of one bar (measure)
+/// Width of one bar (measure)
 const BAR_WIDTH: i32 = 3200;
-// Width of the barline.
+/// Width of the barline.
 const BARLINE_WIDTH: i32 = 36;
-// Space before each note.
+/// Space before each note.
 const NOTE_MARGIN: i32 = 250;
 /// Color of cursor
 const CURSOR_COLOR: u32 = 0xff14e2;
@@ -18,6 +18,7 @@ pub fn bravura() -> Vec<Path> {
     include!("vfont/bravura.vfont")
 }
 
+/// Note duration within a measure
 #[derive(Clone, Copy)]
 struct Duration {
     num: u8,
@@ -25,11 +26,13 @@ struct Duration {
 }
 
 impl Duration {
+    /// Create a new note duration
     fn new(dur: (u8, u8)) -> Self {
         let num = dur.0;
         let den = dur.1;
         Duration { num, den }
     }
+    /// Get the width
     fn width(&self) -> i32 {
         let num = f32::from(self.num);
         let den = f32::from(self.den);
@@ -226,19 +229,13 @@ impl MeasureElem {
     ///
     /// - `scof`: The score.
     /// - `curs`: Cursor of measure.
-    /// - `cursor`: Current cursor position.
-    pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor,
-        cursor: &Cursor)
-    {
+    pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor) {
         let mut is_empty = true;
         while let Some(marking) = scof.marking(&curs) {
             is_empty = false;
             match marking {
                 Marking::Note(note) => {
                     let duration = Duration::new(note.duration);
-                    if *cursor == *curs {
-                        self.add_cursor(duration);
-                    }
                     self.add_mark(&note);
                     self.width += duration.width();
                 },
@@ -259,11 +256,22 @@ impl MeasureElem {
     }
 
     /// Add a cursor
-    fn add_cursor(&mut self, duration: Duration) {
-        let x = self.width + BARLINE_WIDTH / 2;
-        let width = duration.width() - BARLINE_WIDTH / 2;
-        if width > 0 {
-            self.add_rect(x, width as u32, Some(CURSOR_COLOR));
+    /// - `cursor`: Cursor position.
+    pub fn add_cursor(&mut self, scof: &Scof, cursor: &Cursor) {
+        let mut width = 0;
+        let mut curs = cursor.first_marking();
+        while let Some(Marking::Note(note)) = scof.marking(&curs) {
+            let duration = Duration::new(note.duration);
+            if *cursor == curs {
+                let x = width + BARLINE_WIDTH / 2;
+                let w = duration.width() - BARLINE_WIDTH / 2;
+                if w > 0 {
+                    self.add_rect(x, w as u32, Some(CURSOR_COLOR));
+                }
+                break;
+            }
+            width += duration.width();
+            curs.right_unchecked();
         }
     }
 
@@ -362,22 +370,12 @@ mod tests {
         "<g><use x=\"2\" y=\"3\" xlink:href=\"#e0a2\"/></g>");
     }
 
-    //    stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
-    //    stem_down(out, offset_x + 2000 + 15, -STEP_DY * 3);
-    /*    // Clef
-    stamp(out, ClefC, 96, STAFF_DY);
+    // stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
+    // Clef
+    // stamp(out, ClefC, 96, STAFF_DY);
     // Time Signature
-    stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
-    stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470*/
-
-    /*    // Draw
-    stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
-    stem_down(out, 96 + 2000 + 2000 + 15, 0);
-
-    // Barline
-    stamp(out, Barline, 96 + 2000 + 4000, 1500);
-
-    // Draw
-    stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
-    stem_up(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
+    // stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
+    // stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470
+    // stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
+    // stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
 }
