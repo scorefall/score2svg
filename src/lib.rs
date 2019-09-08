@@ -161,7 +161,33 @@ impl fmt::Display for Element {
     }
 }
 
+/// Staff lines
+pub struct Staff {
+    pub lines: i32,
+}
+
+impl Staff {
+    /// Create a new staff
+    pub fn new(lines: i32) -> Self {
+        Staff { lines }
+    }
+
+    /// Create a staff path
+    pub fn path(&self, width: i32) -> Path {
+        let mut d = String::new();
+        for i in 0..self.lines {
+            let x = 0;
+            let y = STAFF_MARGIN_Y + STEP_DY * (i * 2);
+            let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
+                width, STAFF_WIDTH, width, STAFF_WIDTH);
+            d.push_str(line);
+        }
+        Path::new(None, d)
+    }
+}
+
 pub struct MeasureElem {
+    pub staff: Staff,
     pub elements: Vec<Element>,
     pub width: i32,
 }
@@ -177,10 +203,10 @@ impl fmt::Display for MeasureElem {
 
 impl MeasureElem {
     /// Create a new measure element
-    pub fn new() -> Self {
+    pub fn new(staff: Staff) -> Self {
         let elements = vec![];
         let width = 0;
-        MeasureElem { elements, width }
+        MeasureElem { staff, elements, width }
     }
     /// Add markings
     ///
@@ -280,20 +306,10 @@ impl MeasureElem {
     }
 
     /// Add staff
-    pub fn add_staff_5(&mut self) {
-        let mut d = String::new();
-        for i in 0..5 {
-            d.push_str(&staff(0, STEP_DY * (i * 2) + STAFF_MARGIN_Y,
-                self.width));
-        }
-        self.elements.push(Element::Path(Path::new(None, d)))
+    pub fn add_staff(&mut self) {
+        let path = self.staff.path(self.width);
+        self.elements.push(Element::Path(path))
     }
-}
-
-/// Render staff lines at a specific position
-fn staff(x: i32, y: i32, w: i32) -> String {
-    format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
-        w, STAFF_WIDTH, w, STAFF_WIDTH)
 }
 
 #[cfg(test)]
