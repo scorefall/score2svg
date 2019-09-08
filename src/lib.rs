@@ -1,19 +1,17 @@
-use std::fmt;
+mod glyph;
+pub use glyph::GlyphId;
 
 use scof::{Cursor, Marking, Note, Scof};
-mod glyph;
-
-pub use glyph::GlyphId;
-use glyph::GlyphId::*;
+use std::fmt;
 
 // Width of one bar (measure)
 const BAR_WIDTH: i32 = 3200;
 // Width of the barline.
-const BARLINE_WIDTH: i32 = 32;
+const BARLINE_WIDTH: i32 = 36;
 // Space before each note.
 const NOTE_MARGIN: i32 = 250;
-
-const CURSOR_COLOR: &str = "ff14e2";
+/// Color of cursor
+const CURSOR_COLOR: u32 = 0xff14e2;
 
 /// Get Bravura font paths
 pub fn bravura() -> Vec<Path> {
@@ -44,19 +42,26 @@ pub struct Rect {
     pub y: i32,
     pub width: u32,
     pub height: u32,
-    pub fill: String,
+    pub fill: Option<String>,
 }
 
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"/>",
-            self.x, self.y, self.width, self.height, &self.fill)
+        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
+            self.x, self.y, self.width, self.height)?;
+        if let Some(ref fill) = self.fill {
+            write!(f, " fill=\"{}\"", fill)?;
+        }
+        write!(f, "/>")
     }
 }
 
 impl Rect {
-    fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
-        let fill = format!("#{}", CURSOR_COLOR);
+    fn new(x: i32, y: i32, width: u32, height: u32, fill: Option<u32>) -> Self {
+        let fill = match fill {
+            Some(f) => Some(format!("#{:x}", f)),
+            None => None,
+        };
         Rect { x, y, width, height, fill }
     }
 }
@@ -173,7 +178,7 @@ impl Staff {
     /// Get the height of the staff
     pub fn height(&self) -> i32 {
         if self.lines > 0 {
-            let spaces = (self.lines - 1);
+            let spaces = self.lines - 1;
             Staff::STEP_DY * spaces * 2
         } else {
             0
@@ -250,15 +255,23 @@ impl MeasureElem {
             }
         }
 
-        self.add_use(Barline, BAR_WIDTH, Staff::MARGIN_Y + self.staff.height());
+        self.add_rect(BAR_WIDTH, BARLINE_WIDTH as u32, None);
     }
 
+    /// Add a cursor
     fn add_cursor(&mut self, duration: Duration) {
-        self.elements.push(Element::Rect(Rect::new(
-            self.width + BARLINE_WIDTH,
-            Staff::MARGIN_Y,
-            duration.width() as u32,
-            self.staff.height() as u32)));
+        let x = self.width + BARLINE_WIDTH / 2;
+        let width = duration.width() - BARLINE_WIDTH / 2;
+        if width > 0 {
+            self.add_rect(x, width as u32, Some(CURSOR_COLOR));
+        }
+    }
+
+    /// Add a rectangle from top to bottom of staff
+    fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>) {
+        let rect = Rect::new(x, Staff::MARGIN_Y, width,
+            self.staff.height() as u32, fill);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add mark node for either a note or a rest
@@ -273,9 +286,8 @@ impl MeasureElem {
     fn add_pitch(&mut self, note: &Note) {
         let duration = Duration::new(note.duration);
         let y = Staff::STEP_DY * note.visual_distance();
-
         let cp = GlyphId::notehead_duration(duration.den);
-        self.add_use(cp, self.width + NOTE_MARGIN, y + self.staff.height());
+        self.add_use(cp, NOTE_MARGIN + self.width, y);
         // Only draw stem if not a whole note.
         if duration.num != 1 || duration.den != 1 {
             self.add_stem_down(self.width + NOTE_MARGIN + 15, y);
@@ -304,8 +316,8 @@ impl MeasureElem {
     fn add_rest(&mut self, note: &Note) {
         let duration = Duration::new(note.duration);
         let glyph = GlyphId::rest_duration(duration.den);
-        let x = self.width + NOTE_MARGIN;
-        let mut y = self.staff.height();
+        let x = NOTE_MARGIN + self.width;
+        let mut y = 0;
         // Position whole rest glyph up 2 steps.
         if duration.num == 1 && duration.den == 1 {
             y -= Staff::STEP_DY * 2;
@@ -315,6 +327,7 @@ impl MeasureElem {
 
     /// Add use element
     fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
+        let y = self.staff.height() + y;
         self.elements.push(Element::Use(Use::new(x, y, glyph)));
     }
 
