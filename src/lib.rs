@@ -188,6 +188,11 @@ impl Staff {
         }
     }
 
+    /// Get the middle of the staff
+    pub fn middle(&self) -> i32 {
+        self.height() / 2
+    }
+
     /// Create a staff path
     pub fn path(&self, width: i32) -> Path {
         let mut d = String::new();
@@ -298,25 +303,38 @@ impl MeasureElem {
         self.add_use(cp, NOTE_MARGIN + self.width, y);
         // Only draw stem if not a whole note.
         if duration.num != 1 || duration.den != 1 {
-            self.add_stem_down(self.width + NOTE_MARGIN + 15, y);
+            self.add_stem(NOTE_MARGIN + self.width, y);
+        }
+    }
+
+    /// Add a stem
+    fn add_stem(&mut self, x: i32, y: i32) {
+        let y = y + self.staff.height();
+        if y < Staff::MARGIN_Y + self.staff.middle() {
+            self.add_stem_down(x, y);
+        } else {
+            self.add_stem_up(x, y);
         }
     }
 
     /// Add a stem downwards.
     fn add_stem_down(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants.
-        let d = format!("M{} {}c-1 14-29 14-30 0v-855l30 50v855z",
-            x + 15,
-            y + 1895);
+        let len = (7.3 * Staff::STEP_DY as f32) as i32;
+        let half = 15;
+        let whole = 30;
+        let d = format!("M{} {} v{} c0 {}-{} {}-{} 0v-{}l{} {}z", x + whole, y,
+            len, half, whole, half, whole, len - whole, whole, whole);
         self.elements.push(Element::Path(Path::new(None, d)));
     }
 
     /// Add a stem upwards.
     fn add_stem_up(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants. 910 (805+105)
-        let d = format!("M{} {}c-1 -14-29-14-30 0v805l30 50v-805z",
-            x + 15,
-            y + 105);
+        let len = (7.3 * Staff::STEP_DY as f32) as i32;
+        let half = 15;
+        let whole = 30;
+        let head = 292;
+        let d = format!("M{} {}v-{}c0-{}-{}-{}-{} 0v{}l{}-{}z", x + head, y,
+            len, half, whole, half, whole, len, whole, whole);
         self.elements.push(Element::Path(Path::new(None, d)));
     }
 
