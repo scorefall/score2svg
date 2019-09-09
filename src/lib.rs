@@ -45,6 +45,8 @@ pub struct Rect {
     pub y: i32,
     pub width: u32,
     pub height: u32,
+    pub rx: Option<u32>,
+    pub ry: Option<u32>,
     pub fill: Option<String>,
 }
 
@@ -52,6 +54,12 @@ impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
             self.x, self.y, self.width, self.height)?;
+        if let Some(ref rx) = self.rx {
+            write!(f, " rx=\"{}\"", rx)?;
+        }
+        if let Some(ref ry) = self.ry {
+            write!(f, " ry=\"{}\"", ry)?;
+        }
         if let Some(ref fill) = self.fill {
             write!(f, " fill=\"{}\"", fill)?;
         }
@@ -60,12 +68,14 @@ impl fmt::Display for Rect {
 }
 
 impl Rect {
-    fn new(x: i32, y: i32, width: u32, height: u32, fill: Option<u32>) -> Self {
+    fn new(x: i32, y: i32, width: u32, height: u32, rx: Option<u32>,
+        ry: Option<u32>, fill: Option<u32>) -> Self
+    {
         let fill = match fill {
             Some(f) => Some(format!("#{:x}", f)),
             None => None,
         };
-        Rect { x, y, width, height, fill }
+        Rect { x, y, width, height, rx, ry, fill }
     }
 }
 
@@ -224,6 +234,13 @@ impl fmt::Display for MeasureElem {
 }
 
 impl MeasureElem {
+    /// Width of stems
+    const STEM_WIDTH: u32 = 30;
+    /// Length of stems
+    const STEM_LENGTH: u32 = (7.3 * Staff::STEP_DY as f32) as u32;
+    /// Width of note head
+    const HEAD_WIDTH: i32 = 263;
+
     /// Create a new measure element
     pub fn new(staff: Staff) -> Self {
         let elements = vec![];
@@ -283,7 +300,7 @@ impl MeasureElem {
     /// Add a rectangle from top to bottom of staff
     fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>) {
         let rect = Rect::new(x, Staff::MARGIN_Y, width,
-            self.staff.height() as u32, fill);
+            self.staff.height() as u32, None, None, fill);
         self.elements.push(Element::Rect(rect));
     }
 
@@ -319,23 +336,20 @@ impl MeasureElem {
 
     /// Add a stem downwards.
     fn add_stem_down(&mut self, x: i32, y: i32) {
-        let len = (7.3 * Staff::STEP_DY as f32) as i32;
-        let half = 15;
-        let whole = 30;
-        let d = format!("M{} {} v{} c0 {}-{} {}-{} 0v-{}l{} {}z", x + whole, y,
-            len, half, whole, half, whole, len - whole, whole, whole);
-        self.elements.push(Element::Path(Path::new(None, d)));
+        let rx = Some(Self::STEM_WIDTH / 2);
+        let ry = Some(Self::STEM_WIDTH);
+        let rect = Rect::new(x, y, Self::STEM_WIDTH, Self::STEM_LENGTH, rx, ry,
+            None);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add a stem upwards.
     fn add_stem_up(&mut self, x: i32, y: i32) {
-        let len = (7.3 * Staff::STEP_DY as f32) as i32;
-        let half = 15;
-        let whole = 30;
-        let head = 292;
-        let d = format!("M{} {}v-{}c0-{}-{}-{}-{} 0v{}l{}-{}z", x + head, y,
-            len, half, whole, half, whole, len, whole, whole);
-        self.elements.push(Element::Path(Path::new(None, d)));
+        let rx = Some(Self::STEM_WIDTH / 2);
+        let ry = Some(Self::STEM_WIDTH);
+        let rect = Rect::new(x + Self::HEAD_WIDTH, y - Self::STEM_LENGTH as i32,
+            Self::STEM_WIDTH, Self::STEM_LENGTH, rx, ry, None);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add `use` element for a rest
@@ -370,8 +384,8 @@ mod tests {
 
     #[test]
     fn rect() {
-        assert_eq!(Rect::new(10, 12, 25, 20).to_string(),
-        "<rect x=\"10\" y=\"12\" width=\"25\" height=\"20\" fill=\"#ff14e2\"/>");
+        assert_eq!(Rect::new(10, 12, 25, 20, None, None, None).to_string(),
+        "<rect x=\"10\" y=\"12\" width=\"25\" height=\"20\"/>");
     }
 
     #[test]
