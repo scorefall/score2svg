@@ -170,7 +170,10 @@ impl fmt::Display for Element {
 
 /// Staff lines
 pub struct Staff {
+    /// Number of lines on staff
     pub lines: i32,
+    /// Number of steps from middle C to middle staff line
+    pub steps: i32,
 }
 
 impl Staff {
@@ -179,13 +182,13 @@ impl Staff {
     /// Margin X
     const MARGIN_X: i32 = 96;
     /// Margin Y
-    const MARGIN_Y: i32 = Staff::STEP_DY * 4;
+    const MARGIN_Y: i32 = Staff::STEP_DY * 6;
     /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
     const LINE_WIDTH: i32 = BARLINE_WIDTH;
 
     /// Create a new staff
-    pub fn new(lines: i32) -> Self {
-        Staff { lines }
+    pub fn new(lines: i32, steps: i32) -> Self {
+        Staff { lines, steps }
     }
 
     /// Get the height of the staff
@@ -200,7 +203,12 @@ impl Staff {
 
     /// Get the middle of the staff
     pub fn middle(&self) -> i32 {
-        self.height() / 2
+        Staff::MARGIN_Y + self.height() / 2
+    }
+
+    /// Get the Y value of middle C relative to the staff
+    pub fn middle_c(&self) -> i32 {
+        self.middle() + Staff::STEP_DY * self.steps
     }
 
     /// Create a staff path
@@ -237,7 +245,7 @@ impl MeasureElem {
     /// Width of stems
     const STEM_WIDTH: u32 = 30;
     /// Length of stems
-    const STEM_LENGTH: u32 = (7.3 * Staff::STEP_DY as f32) as u32;
+    const STEM_LENGTH: u32 = (7.0 * Staff::STEP_DY as f32) as u32;
     /// Width of note head
     const HEAD_WIDTH: i32 = 263;
 
@@ -315,7 +323,7 @@ impl MeasureElem {
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note) {
         let duration = Duration::new(note.duration);
-        let y = Staff::STEP_DY * note.visual_distance();
+        let y = self.staff.middle_c() + Staff::STEP_DY * note.visual_distance();
         let cp = GlyphId::notehead_duration(duration.den);
         self.add_use(cp, NOTE_MARGIN + self.width, y);
         // Only draw stem if not a whole note.
@@ -326,8 +334,7 @@ impl MeasureElem {
 
     /// Add a stem
     fn add_stem(&mut self, x: i32, y: i32) {
-        let y = y + self.staff.height();
-        if y < Staff::MARGIN_Y + self.staff.middle() {
+        if y < self.staff.middle() {
             self.add_stem_down(x, y);
         } else {
             self.add_stem_up(x, y);
@@ -336,6 +343,7 @@ impl MeasureElem {
 
     /// Add a stem downwards.
     fn add_stem_down(&mut self, x: i32, y: i32) {
+        // FIXME: stem should always reach the center line of the staff
         let rx = Some(Self::STEM_WIDTH / 2);
         let ry = Some(Self::STEM_WIDTH);
         let rect = Rect::new(x, y, Self::STEM_WIDTH, Self::STEM_LENGTH, rx, ry,
@@ -345,6 +353,7 @@ impl MeasureElem {
 
     /// Add a stem upwards.
     fn add_stem_up(&mut self, x: i32, y: i32) {
+        // FIXME: stem should always reach the center line of the staff
         let rx = Some(Self::STEM_WIDTH / 2);
         let ry = Some(Self::STEM_WIDTH);
         let rect = Rect::new(x + Self::HEAD_WIDTH, y - Self::STEM_LENGTH as i32,
@@ -357,7 +366,7 @@ impl MeasureElem {
         let duration = Duration::new(note.duration);
         let glyph = GlyphId::rest_duration(duration.den);
         let x = NOTE_MARGIN + self.width;
-        let mut y = 0;
+        let mut y = self.staff.middle();
         // Position whole rest glyph up 2 steps.
         if duration.num == 1 && duration.den == 1 {
             y -= Staff::STEP_DY * 2;
@@ -367,7 +376,6 @@ impl MeasureElem {
 
     /// Add use element
     fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
-        let y = self.staff.height() + y;
         self.elements.push(Element::Use(Use::new(x, y, glyph)));
     }
 
