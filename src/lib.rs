@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scof::{Cursor, Marking, Note, Scof};
+use scof::{Cursor, Marking, Note, Scof, Fraction};
 mod glyph;
 
 pub use glyph::GlyphId;
@@ -24,30 +24,11 @@ const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
 // Space before each note.
 const NOTE_MARGIN: i32 = 250;
 
-const CURSOR_COLOR: &str = "ff14e2";
+const CURSOR_COLOR: &str = "FF9AF0";
 
 /// Get Bravura font paths
 pub fn bravura() -> Vec<Path> {
     include!("vfont/bravura.vfont")
-}
-
-#[derive(Clone, Copy)]
-struct Duration {
-    num: u8,
-    den: u8,
-}
-
-impl Duration {
-    fn new(dur: (u8, u8)) -> Self {
-        let num = dur.0;
-        let den = dur.1;
-        Duration { num, den }
-    }
-    fn width(&self) -> i32 {
-        let num = f32::from(self.num);
-        let den = f32::from(self.den);
-        (BAR_WIDTH as f32 * num * den.recip()) as i32
-    }
 }
 
 pub struct Rect {
@@ -101,7 +82,7 @@ impl fmt::Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<g transform=\"translate({} {})\">", self.x, self.y)?;
         for elem in &self.elements {
-            write!(f, "{}", elem);
+            write!(f, "{}", elem)?;
         }
         write!(f, "</g>")
     }
@@ -195,12 +176,12 @@ impl MeasureElem {
             is_empty = false;
             match marking {
                 Marking::Note(note) => {
-                    let duration = Duration::new(note.duration);
+                    let duration = note.duration;
                     if *cursor == *curs {
                         self.add_cursor(duration);
                     }
                     self.add_mark(&note);
-                    self.width += duration.width();
+                    self.width += duration * BAR_WIDTH;
                 },
                 _ => unreachable!(),
             }
@@ -209,20 +190,20 @@ impl MeasureElem {
 
         if is_empty {
             if let Ok(note) = "1R".parse::<Note>() {
-                let duration = Duration::new(note.duration);
+                let duration = note.duration;
                 self.add_rest(&note);
-                self.width += duration.width();
+                self.width += duration * BAR_WIDTH;
             }
         }
 
         self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
     }
 
-    fn add_cursor(&mut self, duration: Duration) {
+    fn add_cursor(&mut self, duration: Fraction) {
         self.elements.push(Element::Rect(Rect::new(
             self.width + BARLINE_WIDTH,
             STEP_DY * 4,
-            duration.width() as u32,
+            (duration * BAR_WIDTH) as u32,
             STAFF_DY as u32)));
     }
 
@@ -236,7 +217,7 @@ impl MeasureElem {
 
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note) {
-        let duration = Duration::new(note.duration);
+        let duration = note.duration;
         let offset_y = STEP_DY * note.visual_distance();
 
         let cp = GlyphId::notehead_duration(duration.den);
@@ -267,7 +248,7 @@ impl MeasureElem {
 
     /// Add `use` element for a rest
     fn add_rest(&mut self, note: &Note) {
-        let duration = Duration::new(note.duration);
+        let duration = note.duration;
         let glyph = GlyphId::rest_duration(duration.den);
         let x = self.width + NOTE_MARGIN;
         let mut y = STAFF_DY;
