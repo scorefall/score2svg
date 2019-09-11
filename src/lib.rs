@@ -1,30 +1,17 @@
-use std::fmt;
+mod glyph;
+pub use glyph::GlyphId;
 
 use scof::{Cursor, Marking, Note, Scof, Fraction};
-mod glyph;
+use std::fmt;
 
-pub use glyph::GlyphId;
-use glyph::GlyphId::*;
-
-// Width of one bar (measure)
+/// Width of one bar (measure)
 const BAR_WIDTH: i32 = 3200;
-// Width of the barline.
-const BARLINE_WIDTH: i32 = 32;
-// Width of the staff lines (looks best if it matches BARLINE_WIDTH).
-const STAFF_WIDTH: i32 = BARLINE_WIDTH;
-// A half or whole step visual distance in the measure.
-const STEP_DY: i32 = 125;
-// To traverse the whole height of the staff, you need 8 steps (4 spaces).
-const STAFF_DY: i32 = STEP_DY * 8;
-// Margin X.
-const STAFF_MARGIN_X: i32 = 96;
-// Margin Y.
-const STAFF_MARGIN_Y: i32 = STEP_DY * 4;
-
-// Space before each note.
+/// Width of the barline.
+const BARLINE_WIDTH: i32 = 36;
+/// Space before each note.
 const NOTE_MARGIN: i32 = 250;
-
-const CURSOR_COLOR: &str = "FF9AF0";
+/// Color of cursor
+const CURSOR_COLOR: u32 = 0xFF9AF0;
 
 /// Get Bravura font paths
 pub fn bravura() -> Vec<Path> {
@@ -36,20 +23,37 @@ pub struct Rect {
     pub y: i32,
     pub width: u32,
     pub height: u32,
-    pub fill: String,
+    pub rx: Option<u32>,
+    pub ry: Option<u32>,
+    pub fill: Option<String>,
 }
 
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\"/>",
-            self.x, self.y, self.width, self.height, &self.fill)
+        write!(f, "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"",
+            self.x, self.y, self.width, self.height)?;
+        if let Some(ref rx) = self.rx {
+            write!(f, " rx=\"{}\"", rx)?;
+        }
+        if let Some(ref ry) = self.ry {
+            write!(f, " ry=\"{}\"", ry)?;
+        }
+        if let Some(ref fill) = self.fill {
+            write!(f, " fill=\"{}\"", fill)?;
+        }
+        write!(f, "/>")
     }
 }
 
 impl Rect {
-    fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
-        let fill = format!("#{}", CURSOR_COLOR);
-        Rect { x, y, width, height, fill }
+    fn new(x: i32, y: i32, width: u32, height: u32, rx: Option<u32>,
+        ry: Option<u32>, fill: Option<u32>) -> Self
+    {
+        let fill = match fill {
+            Some(f) => Some(format!("#{:x}", f)),
+            None => None,
+        };
+        Rect { x, y, width, height, rx, ry, fill }
     }
 }
 
@@ -142,7 +146,66 @@ impl fmt::Display for Element {
     }
 }
 
+/// Staff lines
+pub struct Staff {
+    /// Number of lines on staff
+    pub lines: i32,
+    /// Number of steps from middle C to middle staff line
+    pub steps: i32,
+}
+
+impl Staff {
+    /// A half or whole step visual distance in the measure.
+    const STEP_DY: i32 = 125;
+    /// Margin X
+    const MARGIN_X: i32 = 96;
+    /// Margin Y
+    const MARGIN_Y: i32 = Staff::STEP_DY * 6;
+    /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
+    const LINE_WIDTH: i32 = BARLINE_WIDTH;
+
+    /// Create a new staff
+    pub fn new(lines: i32, steps: i32) -> Self {
+        Staff { lines, steps }
+    }
+
+    /// Get the height of the staff
+    pub fn height(&self) -> i32 {
+        if self.lines > 0 {
+            let spaces = self.lines - 1;
+            Staff::STEP_DY * spaces * 2
+        } else {
+            0
+        }
+    }
+
+    /// Get the middle of the staff
+    pub fn middle(&self) -> i32 {
+        Staff::MARGIN_Y + self.height() / 2
+    }
+
+    /// Get the Y value of middle C relative to the staff
+    pub fn middle_c(&self) -> i32 {
+        self.middle() + Staff::STEP_DY * self.steps
+    }
+
+    /// Create a staff path
+    pub fn path(&self, width: i32) -> Path {
+        let mut d = String::new();
+        for i in 0..self.lines {
+            let x = 0;
+            let y = Staff::MARGIN_Y + Staff::STEP_DY * (i * 2)
+                - Staff::LINE_WIDTH / 2;
+            let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y, width,
+                Staff::LINE_WIDTH, width, Staff::LINE_WIDTH);
+            d.push_str(line);
+        }
+        Path::new(None, d)
+    }
+}
+
 pub struct MeasureElem {
+    pub staff: Staff,
     pub elements: Vec<Element>,
     pub width: i32,
 }
@@ -157,29 +220,31 @@ impl fmt::Display for MeasureElem {
 }
 
 impl MeasureElem {
+    /// Width of stems
+    const STEM_WIDTH: u32 = 30;
+    /// Length of stems
+    const STEM_LENGTH: u32 = (7.0 * Staff::STEP_DY as f32) as u32;
+    /// Width of note head
+    const HEAD_WIDTH: i32 = 263;
+
     /// Create a new measure element
-    pub fn new() -> Self {
+    pub fn new(staff: Staff) -> Self {
         let elements = vec![];
         let width = 0;
-        MeasureElem { elements, width }
+        MeasureElem { staff, elements, width }
     }
     /// Add markings
     ///
     /// - `scof`: The score.
     /// - `curs`: Cursor of measure.
-    /// - `cursor`: Current cursor position.
-    pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor,
-        cursor: &Cursor)
-    {
+    pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor) {
         let mut is_empty = true;
         while let Some(marking) = scof.marking(&curs) {
             is_empty = false;
             match marking {
                 Marking::Note(note) => {
                     let duration = note.duration;
-                    if *cursor == *curs {
-                        self.add_cursor(duration);
-                    }
+
                     self.add_mark(&note);
                     self.width += duration * BAR_WIDTH;
                 },
@@ -196,15 +261,34 @@ impl MeasureElem {
             }
         }
 
-        self.add_use(Barline, BAR_WIDTH, STAFF_MARGIN_Y + STAFF_DY);
+        self.add_rect(self.width, BARLINE_WIDTH as u32, None);
     }
 
-    fn add_cursor(&mut self, duration: Fraction) {
-        self.elements.push(Element::Rect(Rect::new(
-            self.width + BARLINE_WIDTH,
-            STEP_DY * 4,
-            (duration * BAR_WIDTH) as u32,
-            STAFF_DY as u32)));
+    /// Add a cursor
+    /// - `cursor`: Cursor position.
+    pub fn add_cursor(&mut self, scof: &Scof, cursor: &Cursor) {
+        let mut width = 0;
+        let mut curs = cursor.first_marking();
+        while let Some(Marking::Note(note)) = scof.marking(&curs) {
+            let duration = note.duration;
+            if *cursor == curs {
+                let x = width + BARLINE_WIDTH / 2;
+                let w = duration * BAR_WIDTH - BARLINE_WIDTH / 2;
+                if w > 0 {
+                    self.add_rect(x, w as u32, Some(CURSOR_COLOR));
+                }
+                break;
+            }
+            width += duration * BAR_WIDTH;
+            curs.right_unchecked();
+        }
+    }
+
+    /// Add a rectangle from top to bottom of staff
+    fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>) {
+        let rect = Rect::new(x, Staff::MARGIN_Y, width,
+            self.staff.height() as u32, None, None, fill);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add mark node for either a note or a rest
@@ -218,43 +302,53 @@ impl MeasureElem {
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note) {
         let duration = note.duration;
-        let offset_y = STEP_DY * note.visual_distance();
-
+        let y = self.staff.middle_c() + Staff::STEP_DY * note.visual_distance();
         let cp = GlyphId::notehead_duration(duration.den);
-        self.add_use(cp, self.width + NOTE_MARGIN, STAFF_DY + offset_y);
+        self.add_use(cp, NOTE_MARGIN + self.width, y);
         // Only draw stem if not a whole note.
         if duration.num != 1 || duration.den != 1 {
-            self.add_stem_down(self.width + NOTE_MARGIN + 15, offset_y);
+            self.add_stem(NOTE_MARGIN + self.width, y);
+        }
+    }
+
+    /// Add a stem
+    fn add_stem(&mut self, x: i32, y: i32) {
+        if y < self.staff.middle() {
+            self.add_stem_down(x, y);
+        } else {
+            self.add_stem_up(x, y);
         }
     }
 
     /// Add a stem downwards.
     fn add_stem_down(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants.
-        let d = format!("M{} {}c-1 14-29 14-30 0v-855l30 50v855z",
-            x + 15,
-            y + 1895);
-        self.elements.push(Element::Path(Path::new(None, d)));
+        // FIXME: stem should always reach the center line of the staff
+        let rx = Some(Self::STEM_WIDTH / 2);
+        let ry = Some(Self::STEM_WIDTH);
+        let rect = Rect::new(x, y, Self::STEM_WIDTH, Self::STEM_LENGTH, rx, ry,
+            None);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add a stem upwards.
     fn add_stem_up(&mut self, x: i32, y: i32) {
-        // FIXME: Calculated from constants. 910 (805+105)
-        let d = format!("M{} {}c-1 -14-29-14-30 0v805l30 50v-805z",
-            x + 15,
-            y + 105);
-        self.elements.push(Element::Path(Path::new(None, d)));
+        // FIXME: stem should always reach the center line of the staff
+        let rx = Some(Self::STEM_WIDTH / 2);
+        let ry = Some(Self::STEM_WIDTH);
+        let rect = Rect::new(x + Self::HEAD_WIDTH, y - Self::STEM_LENGTH as i32,
+            Self::STEM_WIDTH, Self::STEM_LENGTH, rx, ry, None);
+        self.elements.push(Element::Rect(rect));
     }
 
     /// Add `use` element for a rest
     fn add_rest(&mut self, note: &Note) {
         let duration = note.duration;
         let glyph = GlyphId::rest_duration(duration.den);
-        let x = self.width + NOTE_MARGIN;
-        let mut y = STAFF_DY;
+        let x = NOTE_MARGIN + self.width;
+        let mut y = self.staff.middle();
         // Position whole rest glyph up 2 steps.
         if duration.num == 1 && duration.den == 1 {
-            y -= STEP_DY * 2;
+            y -= Staff::STEP_DY * 2;
         }
         self.add_use(glyph, x, y);
     }
@@ -265,20 +359,10 @@ impl MeasureElem {
     }
 
     /// Add staff
-    pub fn add_staff_5(&mut self) {
-        let mut d = String::new();
-        for i in 0..5 {
-            d.push_str(&staff(0, STEP_DY * (i * 2) + STAFF_MARGIN_Y,
-                self.width));
-        }
-        self.elements.push(Element::Path(Path::new(None, d)))
+    pub fn add_staff(&mut self) {
+        let path = self.staff.path(self.width);
+        self.elements.push(Element::Path(path))
     }
-}
-
-/// Render staff lines at a specific position
-fn staff(x: i32, y: i32, w: i32) -> String {
-    format!("M{} {}h{}v{}h-{}v-{}z", x, y - STAFF_WIDTH / 2,
-        w, STAFF_WIDTH, w, STAFF_WIDTH)
 }
 
 #[cfg(test)]
@@ -287,8 +371,8 @@ mod tests {
 
     #[test]
     fn rect() {
-        assert_eq!(Rect::new(10, 12, 25, 20).to_string(),
-        "<rect x=\"10\" y=\"12\" width=\"25\" height=\"20\" fill=\"#ff14e2\"/>");
+        assert_eq!(Rect::new(10, 12, 25, 20, None, None, None).to_string(),
+        "<rect x=\"10\" y=\"12\" width=\"25\" height=\"20\"/>");
     }
 
     #[test]
@@ -305,22 +389,12 @@ mod tests {
         "<g><use x=\"2\" y=\"3\" xlink:href=\"#e0a2\"/></g>");
     }
 
-    //    stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
-    //    stem_down(out, offset_x + 2000 + 15, -STEP_DY * 3);
-    /*    // Clef
-    stamp(out, ClefC, 96, STAFF_DY);
+    // stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
+    // Clef
+    // stamp(out, ClefC, 96, STAFF_DY);
     // Time Signature
-    stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
-    stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470*/
-
-    /*    // Draw
-    stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
-    stem_down(out, 96 + 2000 + 2000 + 15, 0);
-
-    // Barline
-    stamp(out, Barline, 96 + 2000 + 4000, 1500);
-
-    // Draw
-    stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
-    stem_up(out, 96 + (2000 + 265) + 4400 + 15, 0);*/
+    // stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
+    // stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470
+    // stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
+    // stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
 }
