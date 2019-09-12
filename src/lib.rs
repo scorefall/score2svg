@@ -12,6 +12,8 @@ const BARLINE_WIDTH: i32 = 36;
 const NOTE_MARGIN: i32 = 250;
 /// Color of cursor
 const CURSOR_COLOR: u32 = 0xFF9AF0;
+/// Width of a whole rest (in font units).
+const WHOLE_REST_WIDTH: i32 = 230;
 
 /// Get Bravura font paths
 pub fn bravura() -> Vec<Path> {
@@ -253,12 +255,13 @@ impl MeasureElem {
             curs.right_unchecked();
         }
 
+        // Insert whole measure rest (different from whole rest).
+        // whole measure rests are always 1 measure, so can be any number of
+        // beats depending on the time signature.  They look like a whole rest,
+        // but are centered.
         if is_empty {
-            if let Ok(note) = "1R".parse::<Note>() {
-                let duration = note.duration;
-                self.add_rest(&note);
-                self.width += duration * BAR_WIDTH;
-            }
+            self.add_rest(None);
+            self.width += BAR_WIDTH;
         }
 
         self.add_rect(self.width, BARLINE_WIDTH as u32, None);
@@ -295,7 +298,7 @@ impl MeasureElem {
     fn add_mark(&mut self, note: &Note) {
         match &note.pitch {
             Some(_pitch) => self.add_pitch(note),
-            None => self.add_rest(note),
+            None => self.add_rest(Some(note)),
         }
     }
 
@@ -313,10 +316,10 @@ impl MeasureElem {
 
     /// Add a stem
     fn add_stem(&mut self, x: i32, y: i32) {
-        if y < self.staff.middle() {
-            self.add_stem_down(x, y);
-        } else {
+        if y > self.staff.middle() {
             self.add_stem_up(x, y);
+        } else {
+            self.add_stem_down(x, y);
         }
     }
 
@@ -341,7 +344,15 @@ impl MeasureElem {
     }
 
     /// Add `use` element for a rest
-    fn add_rest(&mut self, note: &Note) {
+    fn add_rest(&mut self, note: Option<&Note>) {
+        let note = if let Some(note) = note {
+            note
+        } else {
+            let x = (BAR_WIDTH - WHOLE_REST_WIDTH) / 2;
+            let y = self.staff.middle() - Staff::STEP_DY * 2;
+            self.add_use(GlyphId::Rest1, x, y);
+            return;
+        };
         let duration = note.duration;
         let glyph = GlyphId::rest_duration(duration.den);
         let x = NOTE_MARGIN + self.width;
