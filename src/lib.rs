@@ -181,6 +181,11 @@ impl Staff {
         }
     }
 
+    /// Get the height of the staff plus any related glyphs below or above.
+    pub fn virtual_height(&self) -> i32 {
+        self.height() + Self::MARGIN_Y * 2
+    }
+
     /// Get the middle of the staff
     pub fn middle(&self) -> i32 {
         Staff::MARGIN_Y + self.height() / 2
@@ -195,7 +200,7 @@ impl Staff {
     pub fn path(&self, width: i32) -> Path {
         let mut d = String::new();
         for i in 0..self.lines {
-            let x = 0;
+            let x = BARLINE_WIDTH;
             let y = Staff::MARGIN_Y + Staff::STEP_DY * (i * 2)
                 - Staff::LINE_WIDTH / 2;
             let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y, width,
@@ -264,7 +269,7 @@ impl MeasureElem {
             self.width += BAR_WIDTH;
         }
 
-        self.add_rect(self.width, BARLINE_WIDTH as u32, None);
+        self.add_rect(self.width, BARLINE_WIDTH as u32, None, false);
     }
 
     /// Add a cursor
@@ -275,10 +280,10 @@ impl MeasureElem {
         while let Some(Marking::Note(note)) = scof.marking(&curs) {
             let duration = note.duration;
             if *cursor == curs {
-                let x = width + BARLINE_WIDTH / 2;
-                let w = duration * BAR_WIDTH - BARLINE_WIDTH / 2;
+                let x = width + BARLINE_WIDTH;
+                let w = duration * BAR_WIDTH - BARLINE_WIDTH;
                 if w > 0 {
-                    self.add_rect(x, w as u32, Some(CURSOR_COLOR));
+                    self.add_rect(x, w as u32, Some(CURSOR_COLOR), true);
                 }
                 break;
             }
@@ -288,9 +293,13 @@ impl MeasureElem {
     }
 
     /// Add a rectangle from top to bottom of staff
-    fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>) {
-        let rect = Rect::new(x, Staff::MARGIN_Y, width,
-            self.staff.height() as u32, None, None, fill);
+    fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>, long: bool) {
+        let (y, height) = if long {
+            (0, self.staff.virtual_height() as u32)
+        } else {
+            (Staff::MARGIN_Y, self.staff.height() as u32)
+        };
+        let rect = Rect::new(x, y, width, height, None, None, fill);
         self.elements.push(Element::Rect(rect));
     }
 
