@@ -19,13 +19,21 @@
 use crate::glyph::GlyphId;
 use std::fmt;
 
+/// SVG `rect` element
 pub struct Rect {
+    /// X position
     pub x: i32,
+    /// Y position
     pub y: i32,
+    /// Width in user units
     pub width: u32,
+    /// Height in user units
     pub height: u32,
+    /// Rounded corner X-axis radius
     pub rx: Option<u32>,
+    /// Rounded corner Y-axis radius
     pub ry: Option<u32>,
+    /// Fill color
     pub fill: Option<String>,
 }
 
@@ -47,6 +55,7 @@ impl fmt::Display for Rect {
 }
 
 impl Rect {
+    /// Create a new SVG `rect` element
     pub fn new(x: i32, y: i32, width: u32, height: u32, rx: Option<u32>,
         ry: Option<u32>, fill: Option<u32>) -> Self
     {
@@ -58,9 +67,13 @@ impl Rect {
     }
 }
 
+/// SVG `use` element
 pub struct Use {
+    /// X position
     pub x: i32,
+    /// Y position
     pub y: i32,
+    /// Glyph ID
     pub glyph: GlyphId,
 }
 
@@ -72,14 +85,19 @@ impl fmt::Display for Use {
 }
 
 impl Use {
+    /// Create a new SVG `use` element
     pub fn new(x: i32, y: i32, glyph: GlyphId) -> Self {
         Use { x, y, glyph }
     }
 }
 
+/// SVG group `g` element
 pub struct Group {
+    /// X position
     pub x: i32,
+    /// Y position
     pub y: i32,
+    /// Elements within group
     pub elements: Vec<Element>,
 }
 
@@ -99,17 +117,22 @@ impl fmt::Display for Group {
 }
 
 impl Group {
+    /// Create a new SVG group `g` element
     pub fn new(x: i32, y: i32) -> Self {
         let elements = vec![];
         Group { x, y, elements }
     }
+    /// Push an element into the group
     pub fn push(&mut self, elem: Element) {
         self.elements.push(elem);
     }
 }
 
+/// SVG `path` element
 pub struct Path {
+    /// Element ID
     pub id: Option<String>,
+    /// Path data
     pub d: String,
 }
 
@@ -124,6 +147,7 @@ impl fmt::Display for Path {
 }
 
 impl Path {
+    /// Create a new SVG `path` element
     pub fn new<T: Into<String>>(id: Option<T>, d: T) -> Self {
         let id = match id {
             Some(id) => Some(id.into()),
@@ -134,10 +158,15 @@ impl Path {
     }
 }
 
+/// SVG element
 pub enum Element {
+    /// Group `g`
     Group(Group),
+    /// `rect`
     Rect(Rect),
+    /// `use`
     Use(Use),
+    /// `path`
     Path(Path),
 }
 
