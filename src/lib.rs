@@ -174,6 +174,11 @@ impl MeasureElem {
     pub fn add_cursor(&mut self, scof: &Scof, cursor: &Cursor) {
         let mut width = 0;
         let mut curs = cursor.first_marking();
+
+        if cursor.is_first_bar() {
+            width += 1640;
+        }
+
         while let Some(Marking::Note(note)) = scof.marking(&curs) {
             let add = *cursor == curs;
             // TODO: Cycle through tied notes.
@@ -291,18 +296,29 @@ impl MeasureElem {
         let path = self.staff.path(self.width);
         self.elements.push(Element::Path(path))
     }
+
+    /// Add clef
+    pub fn add_clef(&mut self) {
+        self.add_use(GlyphId::ClefC, BARLINE_WIDTH, self.staff.middle());
+        self.width += 1000;
+    }
+
+    /// Add time signature
+    pub fn add_time(&mut self) {
+        // width=421
+        self.add_use(GlyphId::TimeSig3, BARLINE_WIDTH + self.width, self.staff.middle() - Staff::STEP_DY * 2);
+        // width=470
+        self.add_use(GlyphId::TimeSig4, BARLINE_WIDTH + self.width - ((470 - 421) / 2), self.staff.middle() + Staff::STEP_DY * 2);
+
+        self.width += 640;
+    }
+
+    /// Add clef & time signature.
+    pub fn add_signature(&mut self) {
+        self.add_clef();
+        self.add_time();
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    // use super::*;
-
-    // stamp(out, NoteheadFill, offset_x + 2000, STAFF_DY - STEP_DY * 3);
-    // Clef
-    // stamp(out, ClefC, 96, STAFF_DY);
-    // Time Signature
-    // stamp(out, TimeSig3, 96 + STAFF_DY, STAFF_DY - STEP_DY * 2); // 421
-    // stamp(out, TimeSig4, 96 + STAFF_DY - ((470 - 421) / 2), STAFF_DY + STEP_DY * 2); // 470
-    // stamp(out, NoteheadHalf, 96 + 2000 + 2000, STAFF_DY);
-    // stamp(out, NoteheadHalf, 96 + 2000 + 4400, STAFF_DY);
-}
+mod tests {}
