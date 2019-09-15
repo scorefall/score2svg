@@ -302,6 +302,12 @@ pub enum GlyphId {
     TupletColon = 0xE88A,
 }
 
+impl From<GlyphId> for u32 {
+    fn from(g: GlyphId) -> Self {
+        g as u32
+    }
+}
+
 impl GlyphId {
     /// Get the glyph for a rest with a specific duration
     pub(super) fn rest_duration(duration: u8) -> Self {

@@ -16,7 +16,6 @@
 //     You should have received a copy of the GNU General Public License
 //     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::glyph::GlyphId;
 use std::fmt;
 
 /// SVG `rect` element
@@ -73,21 +72,21 @@ pub struct Use {
     pub x: i32,
     /// Y position
     pub y: i32,
-    /// Glyph ID
-    pub glyph: GlyphId,
+    /// Element ID
+    pub id: u32,
 }
 
 impl fmt::Display for Use {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<use x='{}' y='{}' xlink:href='#{:x}'/>", self.x,
-            self.y, self.glyph as u32)
+            self.y, self.id)
     }
 }
 
 impl Use {
     /// Create a new SVG `use` element
-    pub fn new(x: i32, y: i32, glyph: GlyphId) -> Self {
-        Use { x, y, glyph }
+    pub fn new(x: i32, y: i32, id: u32) -> Self {
+        Use { x, y, id }
     }
 }
 
@@ -184,6 +183,7 @@ impl fmt::Display for Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::glyph::GlyphId;
 
     #[test]
     fn rect() {
@@ -193,14 +193,14 @@ mod tests {
 
     #[test]
     fn glyph() {
-        assert_eq!(Use::new(37, 21, GlyphId::StemHarpStringNoise).to_string(),
+        assert_eq!(Use::new(37, 21, GlyphId::StemHarpStringNoise.into()).to_string(),
         "<use x='37' y='21' xlink:href='#e21f'/>");
     }
 
     #[test]
     fn group() {
         let mut group = Group::new(0, 0);
-        group.push(Element::Use(Use::new(2, 3, GlyphId::NoteheadWhole)));
+        group.push(Element::Use(Use::new(2, 3, GlyphId::NoteheadWhole.into())));
         assert_eq!(group.to_string(),
         "<g><use x='2' y='3' xlink:href='#e0a2'/></g>");
     }

@@ -268,7 +268,7 @@ impl MeasureElem {
 
     /// Add use element
     fn add_use(&mut self, glyph: GlyphId, x: i32, y: i32) {
-        self.elements.push(Element::Use(Use::new(x, y, glyph)));
+        self.elements.push(Element::Use(Use::new(x, y, glyph.into())));
     }
 
     /// Add staff
