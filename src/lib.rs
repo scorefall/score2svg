@@ -55,7 +55,7 @@ impl Staff {
     /// Margin X
     const MARGIN_X: i32 = 96;
     /// Minimum number of steps in top/bottom margins
-    const MARGIN_STEPS: Steps = Steps { 0: 6 };
+    const MARGIN_STEPS: Steps = Steps(6);
     /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
     const LINE_WIDTH: i32 = BARLINE_WIDTH;
 
@@ -68,7 +68,7 @@ impl Staff {
     fn steps_top(&self, steps: Steps) -> Steps {
         let top = ((steps / 2) * 2).0 + 2; // round to nearest line
         let dflt = self.steps_middle_c + Self::MARGIN_STEPS;
-        Steps { 0: dflt.0.max(top) }
+        Steps(dflt.0.max(top))
     }
 
     /// Get number of steps bottom margin is above middle C
@@ -76,7 +76,7 @@ impl Staff {
         let bottom = ((steps / 2) * 2).0 - 2; // round to nearest line
         let dflt = self.steps_middle_c - self.height_steps()
             - Self::MARGIN_STEPS;
-        Steps { 0: dflt.0.min(bottom) }
+        Steps(dflt.0.min(bottom))
     }
 
     /// Get number of steps bottom of staff is above middle C
@@ -87,9 +87,9 @@ impl Staff {
     /// Get the height of the staff
     pub fn height_steps(&self) -> Steps {
         if self.lines > 0 {
-            Steps { 0: 2 * (self.lines - 1) }
+            Steps(2 * (self.lines - 1))
         } else {
-            Steps { 0: 0 }
+            Steps(0)
         }
     }
 
