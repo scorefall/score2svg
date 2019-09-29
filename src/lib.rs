@@ -22,7 +22,7 @@ mod svg;
 pub use glyph::GlyphId;
 pub use svg::{Element, Group, Path, Rect, Use};
 
-use scof::{Cursor, Marking, Note, Scof, Duration, Fraction};
+use scof::{Cursor, Duration, Fraction, Marking, Note, Scof, Steps};
 use std::fmt;
 
 /// Width of one bar (measure)
@@ -46,7 +46,7 @@ pub struct Staff {
     /// Number of lines on staff
     pub lines: i32,
     /// Number of steps top of staff is above middle C
-    steps_middle_c: i32,
+    steps_middle_c: Steps,
 }
 
 impl Staff {
@@ -55,40 +55,41 @@ impl Staff {
     /// Margin X
     const MARGIN_X: i32 = 96;
     /// Minimum number of steps in top/bottom margins
-    const MARGIN_STEPS: i32 = 6;
+    const MARGIN_STEPS: Steps = Steps { 0: 6 };
     /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
     const LINE_WIDTH: i32 = BARLINE_WIDTH;
 
     /// Create a new staff
-    pub fn new(lines: i32, steps_middle_c: i32) -> Self {
+    pub fn new(lines: i32, steps_middle_c: Steps) -> Self {
         Staff { lines, steps_middle_c }
     }
 
     /// Get number of steps top margin is above middle C
-    fn steps_top(&self, steps: i32) -> i32 {
-        let top = 2 * (steps / 2) + 2; // round to nearest line
+    fn steps_top(&self, steps: Steps) -> Steps {
+        let top = ((steps / 2) * 2).0 + 2; // round to nearest line
         let dflt = self.steps_middle_c + Self::MARGIN_STEPS;
-        dflt.max(top)
+        Steps { 0: dflt.0.max(top) }
     }
 
     /// Get number of steps bottom margin is above middle C
-    fn steps_bottom(&self, steps: i32) -> i32 {
-        let bottom = 2 * (steps / 2) - 2; // round to nearest line
-        let dflt = self.steps_middle_c - self.height_steps() - Self::MARGIN_STEPS;
-        dflt.min(bottom)
+    fn steps_bottom(&self, steps: Steps) -> Steps {
+        let bottom = ((steps / 2) * 2).0 - 2; // round to nearest line
+        let dflt = self.steps_middle_c - self.height_steps()
+            - Self::MARGIN_STEPS;
+        Steps { 0: dflt.0.min(bottom) }
     }
 
     /// Get number of steps bottom of staff is above middle C
-    fn steps_staff_bottom(&self) -> i32 {
+    fn steps_staff_bottom(&self) -> Steps {
         self.steps_middle_c - self.height_steps()
     }
 
     /// Get the height of the staff
-    pub fn height_steps(&self) -> i32 {
+    pub fn height_steps(&self) -> Steps {
         if self.lines > 0 {
-            2 * (self.lines - 1)
+            Steps { 0: 2 * (self.lines - 1) }
         } else {
-            0
+            Steps { 0: 0 }
         }
     }
 
@@ -110,9 +111,9 @@ pub struct MeasureElem {
     /// Staff containing the measure
     pub staff: Staff,
     /// Number of steps top margin is above middle C
-    pub steps_top: i32,
+    pub steps_top: Steps,
     /// Number of steps bottom margin is above middle C
-    pub steps_bottom: i32,
+    pub steps_bottom: Steps,
     /// Width of measure
     pub width: i32,
     /// SVG Elements
@@ -137,9 +138,9 @@ impl MeasureElem {
     const HEAD_WIDTH: i32 = 263;
 
     /// Create a new measure element
-    pub fn new(staff: Staff, high: Note, low: Note) -> Self {
-        let steps_top = staff.steps_top(high.visual_distance());
-        let steps_bottom = staff.steps_bottom(low.visual_distance());
+    pub fn new(staff: Staff, high: Steps, low: Steps) -> Self {
+        let steps_top = staff.steps_top(high);
+        let steps_bottom = staff.steps_bottom(low);
         let width = 0;
         let elements = vec![];
         MeasureElem { staff, steps_top, steps_bottom, width, elements }
@@ -204,14 +205,14 @@ impl MeasureElem {
     }
 
     /// Get the Y offset of a step value
-    fn offset_y(&self, step: i32) -> i32 {
-        debug_assert!(step <= self.steps_top);
-        (self.steps_top - step) * Staff::STEP_DY
+    fn offset_y(&self, steps: Steps) -> i32 {
+        debug_assert!(steps.0 <= self.steps_top.0);
+        ((self.steps_top - steps) * Staff::STEP_DY).0
     }
 
     /// Get the full height
     fn height(&self) -> u32 {
-        ((self.steps_top - self.steps_bottom) * Staff::STEP_DY) as u32
+        ((self.steps_top - self.steps_bottom) * Staff::STEP_DY).0 as u32
     }
 
     /// Get the middle of the staff
@@ -256,14 +257,16 @@ impl MeasureElem {
 
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note, index: usize) {
-        let duration = &note.duration;
-        let y = self.offset_y(note.visual_distance());
-        let cp = GlyphId::notehead_duration(duration[index]);
-        self.add_use(cp, NOTE_MARGIN + self.width, y);
-        // Only draw stem if not a whole note or double whole note (breve).
-        match duration[index] {
-            Duration::Num1(_, _, _) | Duration::Num2(_, _, _) => {},
-            _ => self.add_stem(NOTE_MARGIN + self.width, y),
+        if let Some(steps) = note.visual_distance() {
+            let y = self.offset_y(steps);
+            let duration = &note.duration;
+            let cp = GlyphId::notehead_duration(duration[index]);
+            self.add_use(cp, NOTE_MARGIN + self.width, y);
+            // Only draw stem if not a whole note or double whole note (breve).
+            match duration[index] {
+                Duration::Num1(_, _, _) | Duration::Num2(_, _, _) => {},
+                _ => self.add_stem(NOTE_MARGIN + self.width, y),
+            }
         }
     }
 
