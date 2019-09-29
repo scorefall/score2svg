@@ -45,8 +45,8 @@ pub fn bravura() -> Vec<Path> {
 pub struct Staff {
     /// Number of lines on staff
     pub lines: i32,
-    /// Number of steps from middle C to middle staff line
-    pub steps: i32,
+    /// Number of steps top of staff is above middle C
+    steps_middle_c: i32,
 }
 
 impl Staff {
@@ -54,48 +54,50 @@ impl Staff {
     const STEP_DY: i32 = 125;
     /// Margin X
     const MARGIN_X: i32 = 96;
-    /// Margin Y
-    const MARGIN_Y: i32 = Staff::STEP_DY * 6;
+    /// Minimum number of steps in top/bottom margins
+    const MARGIN_STEPS: i32 = 6;
     /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
     const LINE_WIDTH: i32 = BARLINE_WIDTH;
 
     /// Create a new staff
-    pub fn new(lines: i32, steps: i32) -> Self {
-        Staff { lines, steps }
+    pub fn new(lines: i32, steps_middle_c: i32) -> Self {
+        Staff { lines, steps_middle_c }
+    }
+
+    /// Get number of steps top margin is above middle C
+    fn steps_top(&self, steps: i32) -> i32 {
+        let top = 2 * (steps / 2) + 2; // round to nearest line
+        let dflt = self.steps_middle_c + Self::MARGIN_STEPS;
+        dflt.max(top)
+    }
+
+    /// Get number of steps bottom margin is above middle C
+    fn steps_bottom(&self, steps: i32) -> i32 {
+        let bottom = 2 * (steps / 2) - 2; // round to nearest line
+        let dflt = self.steps_middle_c - self.height_steps() - Self::MARGIN_STEPS;
+        dflt.min(bottom)
+    }
+
+    /// Get number of steps bottom of staff is above middle C
+    fn steps_staff_bottom(&self) -> i32 {
+        self.steps_middle_c - self.height_steps()
     }
 
     /// Get the height of the staff
-    pub fn height(&self) -> i32 {
+    pub fn height_steps(&self) -> i32 {
         if self.lines > 0 {
-            let spaces = self.lines - 1;
-            Staff::STEP_DY * spaces * 2
+            2 * (self.lines - 1)
         } else {
             0
         }
     }
 
-    /// Get the height of the staff plus any related glyphs below or above.
-    pub fn virtual_height(&self) -> i32 {
-        self.height() + Self::MARGIN_Y * 2
-    }
-
-    /// Get the middle of the staff
-    pub fn middle(&self) -> i32 {
-        Staff::MARGIN_Y + self.height() / 2
-    }
-
-    /// Get the Y value of middle C relative to the staff
-    pub fn middle_c(&self) -> i32 {
-        self.middle() + Staff::STEP_DY * self.steps
-    }
-
     /// Create a staff path
-    pub fn path(&self, width: i32) -> Path {
+    pub fn path(&self, top: i32, width: i32) -> Path {
         let mut d = String::new();
         for i in 0..self.lines {
             let x = BARLINE_WIDTH;
-            let y = Staff::MARGIN_Y + Staff::STEP_DY * (i * 2)
-                - Staff::LINE_WIDTH / 2;
+            let y = top + Staff::STEP_DY * (i * 2) - Staff::LINE_WIDTH / 2;
             let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y, width,
                 Staff::LINE_WIDTH, width, Staff::LINE_WIDTH);
             d.push_str(line);
@@ -105,9 +107,16 @@ impl Staff {
 }
 
 pub struct MeasureElem {
+    /// Staff containing the measure
     pub staff: Staff,
-    pub elements: Vec<Element>,
+    /// Number of steps top margin is above middle C
+    pub steps_top: i32,
+    /// Number of steps bottom margin is above middle C
+    pub steps_bottom: i32,
+    /// Width of measure
     pub width: i32,
+    /// SVG Elements
+    pub elements: Vec<Element>,
 }
 
 impl fmt::Display for MeasureElem {
@@ -128,10 +137,12 @@ impl MeasureElem {
     const HEAD_WIDTH: i32 = 263;
 
     /// Create a new measure element
-    pub fn new(staff: Staff) -> Self {
-        let elements = vec![];
+    pub fn new(staff: Staff, high: Note, low: Note) -> Self {
+        let steps_top = staff.steps_top(high.visual_distance());
+        let steps_bottom = staff.steps_bottom(low.visual_distance());
         let width = 0;
-        MeasureElem { staff, elements, width }
+        let elements = vec![];
+        MeasureElem { staff, steps_top, steps_bottom, width, elements }
     }
     /// Add markings
     ///
@@ -166,7 +177,7 @@ impl MeasureElem {
             self.width += BAR_WIDTH;
         }
 
-        self.add_rect(self.width, BARLINE_WIDTH as u32, None, false);
+        self.add_barline(self.width);
     }
 
     /// Add a cursor
@@ -192,26 +203,46 @@ impl MeasureElem {
         }
     }
 
+    /// Get the Y offset of a step value
+    fn offset_y(&self, step: i32) -> i32 {
+        debug_assert!(step <= self.steps_top);
+        (self.steps_top - step) * Staff::STEP_DY
+    }
+
+    /// Get the full height
+    fn height(&self) -> u32 {
+        ((self.steps_top - self.steps_bottom) * Staff::STEP_DY) as u32
+    }
+
+    /// Get the middle of the staff
+    fn middle(&self) -> i32 {
+        let steps = self.staff.steps_middle_c - self.staff.height_steps() / 2;
+        self.offset_y(steps)
+    }
+
     /// Add the cursor rectangle.
     fn add_cursor_rect(&mut self, fraction: Fraction, width: &mut i32, add: bool) {
         if add {
             let x = *width + BARLINE_WIDTH;
             let w = fraction * BAR_WIDTH - BARLINE_WIDTH;
             if w > 0 {
-                self.add_rect(x, w as u32, Some(CURSOR_COLOR), true);
+                let height = self.height();
+                let width = w as u32;
+                let fill = Some(CURSOR_COLOR);
+                let rect = Rect::new(x, 0, width, height, None, None, fill);
+                self.elements.push(Element::Rect(rect));
             }
         }
         *width += fraction * BAR_WIDTH;
     }
 
-    /// Add a rectangle from top to bottom of staff
-    fn add_rect(&mut self, x: i32, width: u32, fill: Option<u32>, long: bool) {
-        let (y, height) = if long {
-            (0, self.staff.virtual_height() as u32)
-        } else {
-            (Staff::MARGIN_Y, self.staff.height() as u32)
-        };
-        let rect = Rect::new(x, y, width, height, None, None, fill);
+    /// Add a barline to staff
+    fn add_barline(&mut self, x: i32) {
+        let width = BARLINE_WIDTH as u32;
+        let y = self.offset_y(self.staff.steps_middle_c);
+        let y_bottom = self.offset_y(self.staff.steps_staff_bottom());
+        let height = (y_bottom - y) as u32;
+        let rect = Rect::new(x, y, width, height, None, None, None);
         self.elements.push(Element::Rect(rect));
     }
 
@@ -226,7 +257,7 @@ impl MeasureElem {
     /// Add elements for a note
     fn add_pitch(&mut self, note: &Note, index: usize) {
         let duration = &note.duration;
-        let y = self.staff.middle_c() + Staff::STEP_DY * note.visual_distance();
+        let y = self.offset_y(note.visual_distance());
         let cp = GlyphId::notehead_duration(duration[index]);
         self.add_use(cp, NOTE_MARGIN + self.width, y);
         // Only draw stem if not a whole note or double whole note (breve).
@@ -238,7 +269,7 @@ impl MeasureElem {
 
     /// Add a stem
     fn add_stem(&mut self, x: i32, y: i32) {
-        if y > self.staff.middle() {
+        if y > self.middle() {
             self.add_stem_up(x, y);
         } else {
             self.add_stem_down(x, y);
@@ -271,14 +302,14 @@ impl MeasureElem {
             note
         } else {
             let x = (BAR_WIDTH - WHOLE_REST_WIDTH) / 2;
-            let y = self.staff.middle() - Staff::STEP_DY * 2;
+            let y = self.middle() - Staff::STEP_DY * 2;
             self.add_use(GlyphId::Rest1, x, y);
             return;
         };
         let duration = &note.duration;
         let glyph = GlyphId::rest_duration(duration[index]);
         let x = NOTE_MARGIN + self.width;
-        let mut y = self.staff.middle();
+        let mut y = self.middle();
         // Position whole rest glyph up 2 steps.
         if let Duration::Num1(_, _, _) = duration[index] {
             y -= Staff::STEP_DY * 2;
@@ -293,22 +324,23 @@ impl MeasureElem {
 
     /// Add staff
     pub fn add_staff(&mut self) {
-        let path = self.staff.path(self.width);
+        let y = self.offset_y(self.staff.steps_middle_c);
+        let path = self.staff.path(y, self.width);
         self.elements.push(Element::Path(path))
     }
 
     /// Add clef
     pub fn add_clef(&mut self) {
-        self.add_use(GlyphId::ClefC, BARLINE_WIDTH, self.staff.middle());
+        self.add_use(GlyphId::ClefC, BARLINE_WIDTH, self.middle());
         self.width += 1000;
     }
 
     /// Add time signature
     pub fn add_time(&mut self) {
         // width=421
-        self.add_use(GlyphId::TimeSig3, BARLINE_WIDTH + self.width, self.staff.middle() - Staff::STEP_DY * 2);
+        self.add_use(GlyphId::TimeSig3, BARLINE_WIDTH + self.width, self.middle() - Staff::STEP_DY * 2);
         // width=470
-        self.add_use(GlyphId::TimeSig4, BARLINE_WIDTH + self.width - ((470 - 421) / 2), self.staff.middle() + Staff::STEP_DY * 2);
+        self.add_use(GlyphId::TimeSig4, BARLINE_WIDTH + self.width - ((470 - 421) / 2), self.middle() + Staff::STEP_DY * 2);
 
         self.width += 640;
     }
