@@ -155,8 +155,7 @@ impl MeasureElem {
             is_empty = false;
             match marking {
                 Marking::Note(note) => {
-                    // TODO: Cycle through tied notes with iterator.
-                    if let Some(fraction) = note.fraction(0) {
+                    if let Some(fraction) = note.fraction() {
                         self.add_mark(&note);
                         self.width += fraction * BAR_WIDTH;
                     } else {
@@ -174,7 +173,7 @@ impl MeasureElem {
         // beats depending on the time signature.  They look like a whole rest,
         // but are centered.
         if is_empty {
-            self.add_rest(None, 0);
+            self.add_rest(None);
             self.width += BAR_WIDTH;
         }
 
@@ -194,7 +193,7 @@ impl MeasureElem {
         while let Some(Marking::Note(note)) = scof.marking(&curs) {
             let add = *cursor == curs;
             // TODO: Cycle through tied notes.
-            if let Some(fraction) = note.fraction(0) {
+            if let Some(fraction) = note.fraction() {
                 self.add_cursor_rect(fraction, &mut width, add);
             } else {
                 self.add_cursor_rect(Fraction::new(1, 1), &mut width, add);
@@ -250,20 +249,20 @@ impl MeasureElem {
     /// Add mark node for either a note or a rest
     fn add_mark(&mut self, note: &Note) {
         match &note.pitch {
-            Some(_pitch) => self.add_pitch(note, 0 /* FIXME: TIES*/),
-            None => self.add_rest(Some(note), 0 /*rests can't be tied*/),
+            Some(_pitch) => self.add_pitch(note),
+            None => self.add_rest(Some(note)),
         }
     }
 
     /// Add elements for a note
-    fn add_pitch(&mut self, note: &Note, index: usize) {
+    fn add_pitch(&mut self, note: &Note) {
         if let Some(steps) = note.visual_distance() {
             let y = self.offset_y(steps);
             let duration = &note.duration;
-            let cp = GlyphId::notehead_duration(duration[index]);
+            let cp = GlyphId::notehead_duration(duration.0);
             self.add_use(cp, NOTE_MARGIN + self.width, y);
             // Only draw stem if not a whole note or double whole note (breve).
-            match duration[index] {
+            match duration.0 {
                 Duration::Num1(_, _, _) | Duration::Num2(_, _, _) => {},
                 _ => self.add_stem(NOTE_MARGIN + self.width, y),
             }
@@ -300,7 +299,7 @@ impl MeasureElem {
     }
 
     /// Add `use` element for a rest
-    fn add_rest(&mut self, note: Option<&Note>, index: usize) {
+    fn add_rest(&mut self, note: Option<&Note>) {
         let note = if let Some(note) = note {
             note
         } else {
@@ -310,11 +309,11 @@ impl MeasureElem {
             return;
         };
         let duration = &note.duration;
-        let glyph = GlyphId::rest_duration(duration[index]);
+        let glyph = GlyphId::rest_duration(duration.0);
         let x = NOTE_MARGIN + self.width;
         let mut y = self.middle();
         // Position whole rest glyph up 2 steps.
-        if let Duration::Num1(_, _, _) = duration[index] {
+        if let Duration::Num1(_, _, _) = duration.0 {
             y -= Staff::STEP_DY * 2;
         }
         self.add_use(glyph, x, y);
