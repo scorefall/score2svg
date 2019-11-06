@@ -50,47 +50,51 @@ impl<'a> Notator<'a> {
 
     // Notate a pitched note.
     fn notate_pitch(&mut self, note: &Note, mut dur: u16) {
-        let mut check = 512;
+        let mut check = 128;
+        let temp_width = self.width + Fraction::new(dur, 128).simplify();
+        self.width = temp_width;
 
         while dur != 0 {
             if dur == check {
-                let frac = Fraction::new(check, 512).simplify();
-                self.measure.add_pitch(check, self.width, note.visual_distance());
-                self.width = self.width + Fraction::new(4, 1) * frac;
+                self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
+                self.measure.add_pitch(check, self.width, note.visual_distance());
                 dur -= check;
             } else if dur > check {
-                let frac = Fraction::new(check, 512).simplify();
-                self.measure.add_pitch(check, self.width, note.visual_distance());
-                self.width = self.width + Fraction::new(4, 1) * frac;
+                self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
+                self.measure.add_pitch(check, self.width, note.visual_distance());
                 dur -= check;
             }
 
             check /= 2;
         }
+
+        self.width = temp_width;
     }
 
     // Notate a rest.
     fn notate_rest(&mut self, note: &Note, mut dur: u16) {
-        let mut check = 512;
+        let mut check = 128;
+        let temp_width = self.width + Fraction::new(dur, 128).simplify();
+        self.width = temp_width;
 
         while dur != 0 {
             if dur == check {
-                let frac = Fraction::new(check, 512).simplify();
-                self.measure.add_rest(GlyphId::rest_duration(check), self.width);
-                self.width = self.width + Fraction::new(4, 1) * frac;
+                self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
+                self.measure.add_rest(GlyphId::rest_duration(check), self.width);
                 dur -= check;
             } else if dur > check {
-                let frac = Fraction::new(check, 512).simplify();
-                self.measure.add_rest(GlyphId::rest_duration(check), self.width);
-                self.width = self.width + Fraction::new(4, 1) * frac;
+                self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
+                self.measure.add_rest(GlyphId::rest_duration(check), self.width);
                 dur -= check;
             }
 
             check /= 2;
         }
+
+        self.width = temp_width;
     }
 }
