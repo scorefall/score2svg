@@ -18,11 +18,15 @@
 
 mod glyph;
 mod svg;
+mod notator;
 
 pub use glyph::GlyphId;
 pub use svg::{Element, Group, Path, Rect, Use};
 
-use scof::{Cursor, Duration, Fraction, Marking, Note, Scof, Steps};
+use notator::Notator;
+
+use cala::note;
+use scof::{Cursor, Fraction, Marking, Note, Scof, Steps};
 use std::fmt;
 
 /// Width of one bar (measure)
@@ -145,25 +149,26 @@ impl MeasureElem {
         let elements = vec![];
         MeasureElem { staff, steps_top, steps_bottom, width, elements }
     }
+
     /// Add markings
     ///
     /// - `scof`: The score.
     /// - `curs`: Cursor of measure.
     pub fn add_markings(&mut self, scof: &Scof, curs: &mut Cursor) {
         let mut is_empty = true;
+
+        let mut notator = Notator::new(self);
         while let Some(marking) = scof.marking(&curs) {
+
             is_empty = false;
             match marking {
                 Marking::Note(note) => {
-                    if let Some(fraction) = note.fraction() {
-                        self.add_mark(&note);
-                        self.width += fraction * BAR_WIDTH;
-                    } else {
-                        // Encountered a whole measure rest "R"
-                        is_empty = true;
-                    }
-                },
-                _ => unreachable!(),
+                    notator.notate(&note);
+//                    self.width += note.duration() * BAR_WIDTH;
+//                        self.add_mark(&note);
+//                        self.width += fraction * BAR_WIDTH;
+                }
+                _ => unreachable!()
             }
             curs.right_unchecked();
         }
@@ -173,9 +178,11 @@ impl MeasureElem {
         // beats depending on the time signature.  They look like a whole rest,
         // but are centered.
         if is_empty {
-            self.add_rest(None);
-            self.width += BAR_WIDTH;
+            self.add_measure_rest();
+
         }
+
+            self.width += BAR_WIDTH;
 
         self.add_barline(self.width);
     }
@@ -190,16 +197,17 @@ impl MeasureElem {
             width += 1640;
         }
 
+        let mut is_empty = true;
         while let Some(Marking::Note(note)) = scof.marking(&curs) {
             let add = *cursor == curs;
-            // TODO: Cycle through tied notes.
-            if let Some(fraction) = note.fraction() {
-                self.add_cursor_rect(fraction, &mut width, add);
-            } else {
-                self.add_cursor_rect(Fraction::new(1, 1), &mut width, add);
-            }
+            is_empty = false;
+            self.add_cursor_rect(note.duration(), &mut width, add);
             if add { break }
             curs.right_unchecked();
+        }
+        if is_empty {
+            let add = *cursor == curs;
+            self.add_cursor_rect(Fraction::new(1, 1), &mut width, add);
         }
     }
 
@@ -246,25 +254,26 @@ impl MeasureElem {
         self.elements.push(Element::Rect(rect));
     }
 
-    /// Add mark node for either a note or a rest
+/*    /// Add mark node for either a note or a rest
+    #[deprecated]
     fn add_mark(&mut self, note: &Note) {
         match &note.pitch {
             Some(_pitch) => self.add_pitch(note),
             None => self.add_rest(Some(note)),
         }
-    }
+    }*/
 
     /// Add elements for a note
-    fn add_pitch(&mut self, note: &Note) {
-        if let Some(steps) = note.visual_distance() {
+    fn add_pitch(&mut self, dur: u16, offset: Fraction, vd: Option<scof::Steps>) {
+        if let Some(steps) = vd {
+            let x = NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
             let y = self.offset_y(steps);
-            let duration = &note.duration;
-            let cp = GlyphId::notehead_duration(duration.0);
-            self.add_use(cp, NOTE_MARGIN + self.width, y);
+            let cp = GlyphId::notehead_duration(dur);
+            self.add_use(cp, x, y);
             // Only draw stem if not a whole note or double whole note (breve).
-            match duration.0 {
-                Duration::Num1(_, _, _) | Duration::Num2(_, _, _) => {},
-                _ => self.add_stem(NOTE_MARGIN + self.width, y),
+            match dur {
+                128 | 256 => {},
+                _ => self.add_stem(x, y),
             }
         }
     }
@@ -298,22 +307,33 @@ impl MeasureElem {
         self.elements.push(Element::Rect(rect));
     }
 
-    /// Add `use` element for a rest
-    fn add_rest(&mut self, note: Option<&Note>) {
-        let note = if let Some(note) = note {
+    /// Add `use` element for a whole measure rest
+    fn add_measure_rest(&mut self/*, note: Option<&Note>*/) {
+/*        let note = if let Some(note) = note {
             note
-        } else {
+        } else {*/
             let x = (BAR_WIDTH - WHOLE_REST_WIDTH) / 2;
             let y = self.middle() - Staff::STEP_DY * 2;
             self.add_use(GlyphId::Rest1, x, y);
-            return;
+/*            return;
         };
         let duration = &note.duration;
-        let glyph = GlyphId::rest_duration(duration.0);
+        let glyph = GlyphId::rest_duration(duration);
         let x = NOTE_MARGIN + self.width;
         let mut y = self.middle();
         // Position whole rest glyph up 2 steps.
-        if let Duration::Num1(_, _, _) = duration.0 {
+        if duration.num == duration.den {
+            y -= Staff::STEP_DY * 2;
+        }
+        self.add_use(glyph, x, y);*/
+    }
+
+    /// Add `use` element for a rest.
+    fn add_rest(&mut self, glyph: GlyphId, offset: Fraction) {
+        let x = NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
+        let mut y = self.middle();
+        // Position whole rest glyph up 2 steps.
+        if glyph == GlyphId::Rest1 {
             y -= Staff::STEP_DY * 2;
         }
         self.add_use(glyph, x, y);

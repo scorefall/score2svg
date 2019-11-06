@@ -18,13 +18,13 @@
 
 #![allow(unused)] // FIXME: For now, until all of the glyphs are implemented.
 
-use scof::Duration;
+use scof::Fraction;
 
 /// Different parts of the music that can be drawn.
 ///
 /// The IDs match SMuFL.  
 #[repr(u32)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum GlyphId {
     // Barline
     Barline = 0xE030,
@@ -312,59 +312,57 @@ impl From<GlyphId> for u32 {
 
 impl GlyphId {
     /// Get the glyph for a rest with a specific duration
-    pub(super) fn rest_duration(duration: Duration) -> Self {
+    pub(super) fn rest_duration(duration: u16) -> Self {
         use GlyphId::*;
-        use Duration::*;
-
         match duration {
-            Den128(_,_) => Rest128,
-            Den64(_,_,_) => Rest64,
-            Den32(_,_,_) => Rest32,
-            Den16(_,_,_) => Rest16,
-            Den8(_,_,_) => Rest8,
-            Den4(_,_,_) => Rest4,
-            Den2(_,_,_) => Rest2,
-            Num1(_,_,_) => Rest1,
-            Num2(_,_,_) => Rest1, // FIXME: Double Whole Rest
-            Num4(_,_) => Rest1, // FIXME: Quadruple Whole Rest
+            1 => Rest128,
+            2 | 3 => Rest64,
+            4 | 6 | 9 => Rest32,
+            8 | 12 | 18 | 27 => Rest16,
+            16 | 24 | 36 | 54 | 81 => Rest8,
+            32 | 48 | 72 | 108 | 162 => Rest4,
+            64 | 96 | 144 | 216 => Rest2,
+            128 | 192 | 288  => Rest1,
+            256 | 384 => Rest1, // FIXME: Double Whole Rest
+            512 => Rest1, // FIXME: Quadruple Whole Rest
+            _ => panic!("Bug in Notator, no glyph for ({})", duration),
         }
     }
 
     /// Get the flag glyph for a note with a specific duration
-    pub(super) fn flag_duration(duration: Duration, up: bool) -> Option<Self> {
+    pub(super) fn flag_duration(duration: u16, up: bool) -> Option<Self> {
         use GlyphId::*;
-        use Duration::*;
 
         Some(match duration {
-            Den128(_,_) => {
+            1 => {
                 if up {
                     FlagUp128
                 } else {
                     FlagDown128
                 }
             },
-            Den64(_,_,_) => {
+            2 | 3 => {
                 if up {
                     FlagUp64
                 } else {
                     FlagDown64
                 }
             },
-            Den32(_,_,_) => {
+            4 | 6 | 9 => {
                 if up {
                     FlagUp32
                 } else {
                     FlagDown32
                 }
             },
-            Den16(_,_,_) => {
+            8 | 12 | 18 | 27 => {
                 if up {
                     FlagUp16
                 } else {
                     FlagDown16
                 }
             },
-            Den8(_,_,_) => {
+            16 | 24 | 36 | 54 | 81 => {
                 if up {
                     FlagUp8
                 } else {
@@ -377,7 +375,7 @@ impl GlyphId {
     }
 
     /// Get the notehead glyph for a note with a specific duration
-    pub(super) fn notehead_duration(duration: Duration) -> Self {
+    pub(super) fn notehead_duration(duration: u16) -> Self {
         use GlyphId::*;
         Self::notehead_variants(
             NoteheadDoubleWhole,
@@ -389,7 +387,7 @@ impl GlyphId {
     }
 
     /// Get the notehead glyph for a note with a specific duration
-    pub(super) fn x_notehead_duration(duration: Duration) -> Self {
+    pub(super) fn x_notehead_duration(duration: u16) -> Self {
         use GlyphId::*;
         Self::notehead_variants(
             NoteheadDoubleWholeX,
@@ -401,7 +399,7 @@ impl GlyphId {
     }
 
     /// Get the square notehead glyph for a note with a specific duration
-    pub(super) fn square_notehead_duration(duration: Duration) -> Self {
+    pub(super) fn square_notehead_duration(duration: u16) -> Self {
         use GlyphId::*;
         Self::notehead_variants(
             NoteheadDoubleWholeSquare,
@@ -413,7 +411,7 @@ impl GlyphId {
     }
 
     /// Get the large square notehead glyph for a note with a specific duration
-    pub(super) fn large_square_notehead_duration(duration: Duration) -> Self {
+    pub(super) fn large_square_notehead_duration(duration: u16) -> Self {
         use GlyphId::*;
         Self::notehead_variants(
             NoteheadDoubleWholeSquare, // FIXME: Find Glyph
@@ -430,15 +428,13 @@ impl GlyphId {
         whole: GlyphId,
         half: GlyphId,
         fill: GlyphId,
-        duration: Duration,
+        duration: u16,
     ) -> Self {
-        use Duration::*;
-
         match duration {
-            Den128(_,_) | Den64(_,_,_) | Den32(_,_,_) | Den16(_,_,_) | Den8(_,_,_) | Den4(_,_,_) => fill,
-            Den2(_,_,_) => half,
-            Num1(_,_,_) => whole,
-            Num2(_,_,_) | Num4(_,_) => double,
+            1..=63 => fill,
+            64..=127 => half,
+            128..=255 => whole,
+            _ => double,
         }
     }
 }

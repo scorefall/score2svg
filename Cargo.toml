@@ -27,4 +27,5 @@ edition = "2018"
 license = "GPL"
 
 [dependencies]
+cala = "0.7"
 scof = { path = "../scof" }
