@@ -16,8 +16,9 @@
 //     You should have received a copy of the GNU General Public License
 //     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use cala::note;
-use crate::{Fraction, Note, MeasureElem, GlyphId};
+use std::convert::TryInto;
+
+use crate::{Fraction, Note, MeasureElem, GlyphId, Steps};
 
 /// An iterator over durations of notes in a measure.  Should only output
 /// correct notation.
@@ -40,16 +41,17 @@ impl<'a> Notator<'a> {
     /// Notate a note.
     pub(super) fn notate(&mut self, note: &Note) {
         // FIXME: Tuplets (test for not divisible by 128)
-        let dur = (note.duration.num as u32 * 128) / note.duration.den as u32;
+        let dur = ((note.duration.num as u32 * 128) / note.duration.den as u32)
+            .try_into().unwrap();
 
         match &note.pitch {
-            Some(_pitch) => self.notate_pitch(note, dur as u16),
-            None => self.notate_rest(note, dur as u16),
+            Some(_pitch) => self.notate_pitch(dur, note.visual_distance()),
+            None => self.notate_rest(dur),
         }
     }
 
     // Notate a pitched note.
-    fn notate_pitch(&mut self, note: &Note, mut dur: u16) {
+    fn notate_pitch(&mut self, mut dur: u16, visual_distance: Option<Steps>) {
         let mut check = 128;
         let temp_width = self.width + Fraction::new(dur, 128).simplify();
         self.width = temp_width;
@@ -58,12 +60,12 @@ impl<'a> Notator<'a> {
             if dur == check {
                 self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
-                self.measure.add_pitch(check, self.width, note.visual_distance());
+                self.measure.add_pitch(check, self.width, visual_distance);
                 dur -= check;
             } else if dur > check {
                 self.width = self.width - Fraction::new(check, 128).simplify();
                 self.width = self.width.simplify();
-                self.measure.add_pitch(check, self.width, note.visual_distance());
+                self.measure.add_pitch(check, self.width, visual_distance);
                 dur -= check;
             }
 
@@ -74,7 +76,7 @@ impl<'a> Notator<'a> {
     }
 
     // Notate a rest.
-    fn notate_rest(&mut self, note: &Note, mut dur: u16) {
+    fn notate_rest(&mut self, mut dur: u16) {
         let mut check = 128;
         let temp_width = self.width + Fraction::new(dur, 128).simplify();
         self.width = temp_width;

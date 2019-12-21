@@ -25,7 +25,6 @@ pub use svg::{Element, Group, Path, Rect, Use};
 
 use notator::Notator;
 
-use cala::note;
 use scof::{Cursor, Fraction, Marking, Note, Scof, Steps};
 use std::fmt;
 
@@ -57,7 +56,7 @@ impl Staff {
     /// A half or whole step visual distance in the measure.
     const STEP_DY: i32 = 125;
     /// Margin X
-    const MARGIN_X: i32 = 96;
+    const MARGIN_X: i32 = BARLINE_WIDTH;
     /// Minimum number of steps in top/bottom margins
     const MARGIN_STEPS: Steps = Steps(6);
     /// Width of staff lines (looks best if it matches BARLINE_WIDTH).
@@ -101,7 +100,7 @@ impl Staff {
     pub fn path(&self, top: i32, width: i32) -> Path {
         let mut d = String::new();
         for i in 0..self.lines {
-            let x = BARLINE_WIDTH;
+            let x = Self::MARGIN_X;
             let y = top + Staff::STEP_DY * (i * 2) - Staff::LINE_WIDTH / 2;
             let line = &format!("M{} {}h{}v{}h-{}v-{}z", x, y, width,
                 Staff::LINE_WIDTH, width, Staff::LINE_WIDTH);
@@ -231,7 +230,7 @@ impl MeasureElem {
     /// Add the cursor rectangle.
     fn add_cursor_rect(&mut self, fraction: Fraction, width: &mut i32, add: bool) {
         if add {
-            let x = *width + BARLINE_WIDTH;
+            let x = (Staff::MARGIN_X - BARLINE_WIDTH) + *width + BARLINE_WIDTH;
             let w = fraction * BAR_WIDTH - BARLINE_WIDTH;
             if w > 0 {
                 let height = self.height();
@@ -250,7 +249,7 @@ impl MeasureElem {
         let y = self.offset_y(self.staff.steps_middle_c);
         let y_bottom = self.offset_y(self.staff.steps_staff_bottom());
         let height = (y_bottom - y) as u32;
-        let rect = Rect::new(x, y, width, height, None, None, None);
+        let rect = Rect::new(x + (Staff::MARGIN_X - BARLINE_WIDTH), y, width, height, None, None, None);
         self.elements.push(Element::Rect(rect));
     }
 
@@ -266,7 +265,7 @@ impl MeasureElem {
     /// Add elements for a note
     fn add_pitch(&mut self, dur: u16, offset: Fraction, vd: Option<scof::Steps>) {
         if let Some(steps) = vd {
-            let x = NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
+            let x = (Staff::MARGIN_X - BARLINE_WIDTH) + NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
             let y = self.offset_y(steps);
             let cp = GlyphId::notehead_duration(dur);
             self.add_use(cp, x, y);
@@ -312,7 +311,7 @@ impl MeasureElem {
 /*        let note = if let Some(note) = note {
             note
         } else {*/
-            let x = (BAR_WIDTH - WHOLE_REST_WIDTH) / 2;
+            let x = (Staff::MARGIN_X - BARLINE_WIDTH) + (BAR_WIDTH - WHOLE_REST_WIDTH) / 2;
             let y = self.middle() - Staff::STEP_DY * 2;
             self.add_use(GlyphId::Rest1, x, y);
 /*            return;
@@ -330,7 +329,7 @@ impl MeasureElem {
 
     /// Add `use` element for a rest.
     fn add_rest(&mut self, glyph: GlyphId, offset: Fraction) {
-        let x = NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
+        let x = (Staff::MARGIN_X - BARLINE_WIDTH) + NOTE_MARGIN + self.width + (offset * BAR_WIDTH);
         let mut y = self.middle();
         // Position whole rest glyph up 2 steps.
         if glyph == GlyphId::Rest1 {
@@ -353,16 +352,16 @@ impl MeasureElem {
 
     /// Add clef
     pub fn add_clef(&mut self) {
-        self.add_use(GlyphId::ClefC, BARLINE_WIDTH, self.middle());
+        self.add_use(GlyphId::ClefC, Staff::MARGIN_X + 150, self.middle());
         self.width += 1000;
     }
 
     /// Add time signature
     pub fn add_time(&mut self) {
         // width=421
-        self.add_use(GlyphId::TimeSig3, BARLINE_WIDTH + self.width, self.middle() - Staff::STEP_DY * 2);
+        self.add_use(GlyphId::TimeSig3, Staff::MARGIN_X + self.width + 50, self.middle() - Staff::STEP_DY * 2);
         // width=470
-        self.add_use(GlyphId::TimeSig4, BARLINE_WIDTH + self.width - ((470 - 421) / 2), self.middle() + Staff::STEP_DY * 2);
+        self.add_use(GlyphId::TimeSig4, Staff::MARGIN_X + self.width + 50 - ((470 - 421) / 2), self.middle() + Staff::STEP_DY * 2);
 
         self.width += 640;
     }
