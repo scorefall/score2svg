@@ -149,7 +149,7 @@ impl MeasureElem {
         MeasureElem { staff, steps_top, steps_bottom, width, elements }
     }
 
-    /// Add markings
+    /// Add markings to this measure.
     ///
     /// - `scof`: The score.
     /// - `curs`: Cursor of measure.
@@ -177,6 +177,7 @@ impl MeasureElem {
         // beats depending on the time signature.  They look like a whole rest,
         // but are centered.
         if is_empty {
+//            cala::info!("Add measure rest {}", curs.measure);
             self.add_measure_rest();
 
         }
