@@ -44,9 +44,13 @@ impl<'a> Notator<'a> {
         let dur = ((note.duration.num as u32 * 128) / note.duration.den as u32)
             .try_into().unwrap();
 
-        match &note.pitch {
-            Some(_pitch) => self.notate_pitch(dur, note.visual_distance()),
-            None => self.notate_rest(dur),
+        if note.pitch.is_empty() {
+            self.notate_rest(dur);
+        }
+        let reset_width = self.width;
+        for pitch_index in 0..note.pitch.len() {
+            self.width = reset_width;
+            self.notate_pitch(dur, note.visual_distance(pitch_index));
         }
     }
 
