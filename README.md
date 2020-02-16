@@ -1,10 +1,4 @@
 # score2svg
-Rust library for converting a music xml score to an SVG.
-
-## Fonts
-- Scorlatti default
-- Gonville
-- Beethoven
-- Profondo
-- Paganini
-- Improviso
+This code has moved into the workspace in the
+[ScoreFall Studio](https://github.com/scorefall/scorefall-studio)
+repository.
